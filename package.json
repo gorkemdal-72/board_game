@@ -1,0 +1,15 @@
+{
+  "name": "cax-game",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @cax/server\" \"npm run dev -w @cax/client\"",
+    "build": "npm run build --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "typescript": "^5.0.0"
+  }
+}

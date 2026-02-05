@@ -1,0 +1,30 @@
+// packages/server/src/game/LobbyManager.ts
+import { RoomManager } from './RoomManager';
+import { RoomInfo } from '@cax/shared';
+import { v4 as uuidv4 } from 'uuid'; // ID üretmek için (npm install uuid lazım olabilir, yoksa Math.random kullan)
+
+export class LobbyManager {
+  private rooms: Map<string, RoomManager> = new Map();
+
+  createRoom(name: string, password?: string): RoomManager {
+    const id = Math.random().toString(36).substring(7); // Basit ID (örn: "x7z9a")
+    const newRoom = new RoomManager(id, name, password);
+    this.rooms.set(id, newRoom);
+    console.log(`🏠 Yeni Oda Kuruldu: ${name} (${id})`);
+    return newRoom;
+  }
+
+  getRoom(id: string): RoomManager | undefined {
+    return this.rooms.get(id);
+  }
+
+  // Tüm odaların listesini ver
+  getRoomList(): RoomInfo[] {
+    return Array.from(this.rooms.values()).map(room => room.getRoomInfo());
+  }
+
+  removeRoom(id: string) {
+    this.rooms.delete(id);
+    console.log(`🗑️ Oda Silindi: ${id}`);
+  }
+}

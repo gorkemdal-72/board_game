@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import 'react-toastify/dist/ReactToastify.css';
+
+/* Arka planı koyu yapalım */
+body {
+  @apply bg-slate-900 text-white;
+}

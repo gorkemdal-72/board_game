@@ -1,0 +1,140 @@
+import { useState } from 'react';
+
+import { PlayerColor, type RoomInfo } from '@cax/shared'; 
+
+interface LobbyProps {
+  rooms: RoomInfo[];
+  onCreateRoom: (roomName: string, pass: string, playerName: string, color: PlayerColor) => void;
+  onJoinRoom: (roomId: string, pass: string, playerName: string, color: PlayerColor) => void;
+}
+
+export function Lobby({ rooms, onCreateRoom, onJoinRoom }: LobbyProps) {
+  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  
+  // Form State
+  const [playerName, setPlayerName] = useState("");
+  // PlayerColor.RED artık çalışacak çünkü Enum yaptık
+  const [selectedColor, setSelectedColor] = useState<PlayerColor>(PlayerColor.RED);
+  
+  // Create Room State
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomPass, setNewRoomPass] = useState("");
+
+  // Join Room State
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [joinPass, setJoinPass] = useState("");
+
+  return (
+    <div className="flex flex-col items-center bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700 w-[600px] h-[500px]">
+      <h2 className="text-3xl font-bold text-white mb-6 tracking-widest font-mono">SERVER BROWSER</h2>
+
+      {/* TABLAR */}
+      <div className="flex w-full mb-6 border-b border-slate-600">
+        <button 
+          onClick={() => setActiveTab('list')}
+          className={`flex-1 py-2 font-bold ${activeTab === 'list' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400'}`}
+        >
+          ODALAR
+        </button>
+        <button 
+          onClick={() => setActiveTab('create')}
+          className={`flex-1 py-2 font-bold ${activeTab === 'create' ? 'text-green-400 border-b-2 border-green-400' : 'text-gray-400'}`}
+        >
+          ODA OLUŞTUR
+        </button>
+      </div>
+
+      {/* ORTAK ALAN: İSİM VE RENK SEÇİMİ */}
+      <div className="w-full bg-slate-900 p-4 rounded-lg mb-4 flex gap-4 items-center">
+        <input 
+          type="text" placeholder="Takma Adın" value={playerName} onChange={e => setPlayerName(e.target.value)}
+          className="bg-slate-800 text-white p-2 rounded border border-slate-600 flex-1 outline-none"
+        />
+        <div className="flex gap-1">
+          {/* Enum değerleri üzerinde dönüyoruz */}
+          {Object.values(PlayerColor).map(c => (
+            <div 
+              key={c} onClick={() => setSelectedColor(c)}
+              className={`w-6 h-6 rounded-full cursor-pointer ${selectedColor === c ? 'ring-2 ring-white scale-110' : 'opacity-50'}`}
+              style={{backgroundColor: c}}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* --- TAB 1: ODA LİSTESİ --- */}
+      {activeTab === 'list' && (
+        <div className="w-full flex-1 overflow-y-auto pr-2 space-y-2">
+          {rooms.length === 0 ? (
+            <div className="text-center text-gray-500 mt-10">Hiç oda yok. İlk kuran sen ol!</div>
+          ) : (
+            rooms.map(room => (
+              <div key={room.id} className={`p-3 rounded border flex justify-between items-center transition-all ${selectedRoomId === room.id ? 'bg-blue-900/50 border-blue-500' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`}>
+                <div>
+                  <div className="font-bold text-white flex items-center gap-2">
+                    {room.name}
+                    {room.isLocked && <span className="text-xs text-yellow-500">🔒</span>}
+                  </div>
+                  <div className="text-xs text-gray-400">Oyuncular: {room.playerCount}/{room.maxPlayers} • {room.status}</div>
+                </div>
+                
+                {selectedRoomId === room.id ? (
+                  <div className="flex gap-2">
+                    {room.isLocked && (
+                      <input 
+                        type="password" placeholder="Şifre" 
+                        className="w-20 p-1 rounded bg-slate-900 text-white text-xs border border-slate-500"
+                        onChange={e => setJoinPass(e.target.value)}
+                      />
+                    )}
+                    <button 
+                      className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-sm rounded font-bold"
+                      onClick={() => onJoinRoom(room.id, joinPass, playerName, selectedColor)}
+                    >
+                      GİR
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded"
+                    onClick={() => setSelectedRoomId(room.id)}
+                  >
+                    SEÇ
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* --- TAB 2: ODA OLUŞTUR --- */}
+      {activeTab === 'create' && (
+        <div className="w-full flex-1 flex flex-col gap-4">
+          <div>
+            <label className="text-sm text-gray-400">Oda İsmi</label>
+            <input 
+              type="text" value={newRoomName} onChange={e => setNewRoomName(e.target.value)}
+              className="w-full p-3 bg-slate-700 rounded text-white border border-slate-600 outline-none focus:border-green-500"
+              placeholder="Örn: Catan Ustaları"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-gray-400">Şifre (Opsiyonel)</label>
+            <input 
+              type="password" value={newRoomPass} onChange={e => setNewRoomPass(e.target.value)}
+              className="w-full p-3 bg-slate-700 rounded text-white border border-slate-600 outline-none focus:border-green-500"
+              placeholder="Boş bırakırsan şifresiz olur"
+            />
+          </div>
+          <button 
+            className="mt-auto w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow-lg"
+            onClick={() => playerName && newRoomName && onCreateRoom(newRoomName, newRoomPass, playerName, selectedColor)}
+          >
+            ODAYI KUR VE GİR 🎲
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
