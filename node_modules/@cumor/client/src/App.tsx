@@ -367,7 +367,9 @@ function App() {
               </div>
             )}
 
-          </main>
+          </>
+        )}
+      </main>
     </div>
   );
 }
