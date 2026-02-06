@@ -1,11 +1,11 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm install --legacy-peer-deps && npm run build -w @cumor/shared && npm run build -w @cumor/server"
-  },
-  "deploy": {
-    "startCommand": "npm run start -w @cumor/server",
-    "restartPolicyType": "ON_FAILURE"
-  }
+    "$schema": "https://railway.app/railway.schema.json",
+    "build": {
+        "builder": "NIXPACKS",
+        "buildCommand": "npm install --legacy-peer-deps && rm -rf packages/shared/dist packages/server/dist && npm run build -w @cumor/shared && npm run build -w @cumor/server"
+    },
+    "deploy": {
+        "startCommand": "npm run start -w @cumor/server",
+        "restartPolicyType": "ON_FAILURE"
+    }
 }
