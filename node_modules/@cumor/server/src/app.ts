@@ -1,9 +1,5 @@
 import express from 'express';
 import { createServer } from 'http';
-
-console.log('🏁 Server starting...');
-console.log('📝 ENV PORT:', process.env.PORT);
-
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { RoomManager } from './game/RoomManager.js';
@@ -11,7 +7,11 @@ import { PlayerColor } from '@cumor/shared';
 
 
 const app = express();
+app.set('trust proxy', 1); // Railway proxy desteği (önemli)
 app.use(cors());
+
+console.log('🏁 Server process starting...');
+console.log('📝 ENV PORT value:', process.env.PORT);
 
 app.get('/', (req, res) => {
   res.send('Server is running! 🚀');
@@ -23,15 +23,18 @@ app.get('/health', (req, res) => {
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { 
-    origin: "*", 
+  cors: {
+    origin: "*",
     methods: ["GET", "POST"],
-    credentials: false 
+    credentials: false
   }
 });
 
 const rooms = new Map<string, RoomManager>();
 const playerRoomMap = new Map<string, string>();
+
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+httpServer.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
 
 io.on('connection', (socket) => {
   console.log(`🔌 Yeni bağlantı: ${socket.id}`);

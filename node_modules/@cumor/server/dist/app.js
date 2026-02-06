@@ -1,12 +1,13 @@
 import express from 'express';
 import { createServer } from 'http';
-console.log('🏁 Server starting...');
-console.log('📝 ENV PORT:', process.env.PORT);
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { RoomManager } from './game/RoomManager.js';
 const app = express();
+app.set('trust proxy', 1); // Railway proxy desteği (önemli)
 app.use(cors());
+console.log('🏁 Server process starting...');
+console.log('📝 ENV PORT value:', process.env.PORT);
 app.get('/', (req, res) => {
     res.send('Server is running! 🚀');
 });
@@ -23,6 +24,8 @@ const io = new Server(httpServer, {
 });
 const rooms = new Map();
 const playerRoomMap = new Map();
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+httpServer.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
 io.on('connection', (socket) => {
     console.log(`🔌 Yeni bağlantı: ${socket.id}`);
     socket.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
