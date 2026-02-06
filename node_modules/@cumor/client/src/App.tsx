@@ -198,27 +198,47 @@ function App() {
         {!isInGame && <div className="z-10 w-full max-w-4xl px-4"><Lobby rooms={rooms} onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} /></div>}
         {isInGame && (
           <>
-            {/* === BAŞLANGIÇ ZARI MODALI (BASITLEŞTİRİLMİŞ) === */}
-            {(gameStatus === GameStatus.ROLLING_FOR_START || gameStatus === 'rolling_for_start' as GameStatus) && (
-              <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
-                <div className="bg-slate-800 p-8 rounded-xl border border-slate-600 shadow-xl text-center max-w-lg w-full">
-                  <h2 className="text-2xl font-bold text-white mb-6">🎲 Başlangıç Zarları</h2>
+            {/* BOARD - EN ALT KATMAN */}
+            <div className="absolute inset-0 z-0 flex items-center justify-center">
+              <HexBoard
+                tiles={tiles}
+                buildings={buildings}
+                players={players}
+                onVertexClick={handleVertexClick}
+                onEdgeClick={handleEdgeClick}
+                onTileClick={handleTileClick}
+              />
+            </div>
 
-                  <div className="grid grid-cols-1 gap-2 mb-6">
+            {/* OYUNCU LİSTESİ */}
+            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10 pointer-events-none">
+              {players.map(p => {
+                const isActive = activePlayerId === p.id;
+                return (
+                  <div key={p.id} className={`flex items-center gap-2 px-3 py-1 rounded-md border shadow-sm ${isActive ? 'bg-slate-800 border-yellow-400 text-white' : 'bg-slate-900/60 border-slate-700 text-gray-400'}`}>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                    <span className="font-bold text-sm">{p.name}</span>
+                    <span className="text-xs text-yellow-500 ml-1">{p.victoryPoints} VP</span>
+                    {isActive && <span className="text-xs animate-pulse">👈</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* === BAŞLANGIÇ ZARI PANELİ (BASİT & ŞEFFAF) === */}
+            {(gameStatus === GameStatus.ROLLING_FOR_START || gameStatus === 'rolling_for_start' as GameStatus) && (
+              <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4">
+                <div className="bg-slate-900/90 p-6 rounded-2xl border-2 border-cyan-500 shadow-2xl backdrop-blur-sm text-center min-w-[300px]">
+                  <h2 className="text-xl font-bold text-cyan-400 mb-4 tracking-wider">🎲 Başlangıç Zarları</h2>
+
+                  <div className="space-y-2 mb-6">
                     {players.map(p => {
                       const rollEntry = startRolls.find(r => r.playerId === p.id);
                       const rollVal = rollEntry?.roll;
-                      const isActive = activePlayerId === p.id;
-
                       return (
-                        <div key={p.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isActive ? 'border-yellow-400 bg-yellow-400/10 scale-105' : 'border-slate-600 bg-slate-700/50'}`}>
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full shadow-lg" style={{ backgroundColor: p.color }}></div>
-                            <span className={`text-xl font-bold ${isActive ? 'text-white' : 'text-gray-400'}`}>{p.name} {isActive && '(Sıra Sende!)'}</span>
-                          </div>
-                          <div className="text-2xl font-black">
-                            {rollVal === null ? (isActive ? 'Zar Atıyor...' : 'Bekliyor...') : <span className="text-cyan-400">{rollVal} 🎲</span>}
-                          </div>
+                        <div key={p.id} className="flex justify-between items-center bg-slate-800/50 px-3 py-2 rounded border border-slate-700">
+                          <span className={`${activePlayerId === p.id ? 'text-white' : 'text-gray-400'}`}>{p.name}</span>
+                          <span className="font-mono text-cyan-300 font-bold">{rollVal !== null ? rollVal : (activePlayerId === p.id ? '...' : '-')}</span>
                         </div>
                       );
                     })}
@@ -227,17 +247,15 @@ function App() {
                   {activePlayerId === myId ? (
                     <button
                       onClick={() => socket.emit('roll_dice_start')}
-                      className="bg-cyan-600 hover:bg-cyan-500 text-white text-xl py-4 px-12 rounded-full font-black shadow-[0_0_30px_rgba(8,145,178,0.6)] hover:scale-105 transition-transform animate-pulse"
+                      className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-lg font-bold shadow-lg transition-transform active:scale-95"
                     >
-                      ZAR AT! 🎲
+                      ZAR AT
                     </button>
                   ) : (
-                    <div className="text-gray-500 text-lg font-semibold italic">
-                      {players.find(p => p.id === activePlayerId)?.name} zar atıyor...
+                    <div className="text-gray-400 text-sm animate-pulse">
+                      {players.find(p => p.id === activePlayerId)?.name} bekleniyor...
                     </div>
                   )}
-
-                  <p className="mt-6 text-gray-500 text-sm">En yüksek atan oyuna başlar. Eşitlikte tekrar atılır.</p>
                 </div>
               </div>
             )}
