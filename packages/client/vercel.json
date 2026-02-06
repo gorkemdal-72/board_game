@@ -1,4 +1,5 @@
 {
-  "buildCommand": null,
-  "outputDirectory": "dist"
+  "buildCommand": "echo 'Skipping build since dist is committed'",
+  "outputDirectory": "dist",
+  "framework": null
 }
