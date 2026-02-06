@@ -842,6 +842,8 @@ export class RoomManager {
     startGame(reqId) {
         if (reqId !== this.room.hostId)
             throw new Error("Sadece Host!");
+        if (this.room.players.length < 3 || this.room.players.length > 4)
+            throw new Error("Oyunu başlatmak için 3 veya 4 kişi gerekli!");
         // 1. ZAR ATMA: Herkes için 2d6 at
         const rolls = this.room.players.map(p => {
             const d1 = Math.floor(Math.random() * 6) + 1;
