@@ -5,8 +5,17 @@ import cors from 'cors';
 import { RoomManager } from './game/RoomManager.js';
 import { PlayerColor } from '@cumor/shared';
 
+
 const app = express();
 app.use(cors());
+
+app.get('/', (req, res) => {
+  res.send('Server is running! 🚀');
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
