@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { HexBoard } from './components/HexBoard';
 import { Lobby } from './components/Lobby';
-import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType } from '@cumor/shared';
+import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType } from '@cumor/shared';
 import { io, Socket } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify';
 import { ResourcePanel } from './components/ResourcePanel';

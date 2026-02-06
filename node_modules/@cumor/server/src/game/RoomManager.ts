@@ -125,7 +125,7 @@ export class RoomManager {
 
   buyFromBlackMarket(playerId: string, resource: ResourceType) {
     if (this.room.activePlayerId !== playerId) throw new Error("Sıra sende değil!");
-    if (this.room.turnSubPhase !== 'settlement' && this.room.turnSubPhase !== 'road' && this.room.turnSubPhase !== 'city') {
+    if (this.room.turnSubPhase !== 'waiting') {
       throw new Error("Şu an ticaret yapamazsın.");
     }
 
@@ -154,7 +154,7 @@ export class RoomManager {
     if (this.room.activePlayerId !== playerId) throw new Error("Sıra sende değil!");
 
     // Sadece ana fazda (inşaat vs) yapılabilir
-    if (this.room.turnSubPhase !== 'settlement' && this.room.turnSubPhase !== 'road' && this.room.turnSubPhase !== 'city') {
+    if (this.room.turnSubPhase !== 'waiting') {
       throw new Error("Şu an puan satın alamazsın.");
     }
 
