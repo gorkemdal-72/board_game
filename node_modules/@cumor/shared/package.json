@@ -11,6 +11,6 @@
     }
   },
   "scripts": {
-    "build": "tsc"
+    "build": "npx tsc"
   }
 }
