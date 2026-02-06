@@ -1,5 +1,9 @@
 import express from 'express';
 import { createServer } from 'http';
+
+console.log('🏁 Server starting...');
+console.log('📝 ENV PORT:', process.env.PORT);
+
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { RoomManager } from './game/RoomManager.js';
