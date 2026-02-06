@@ -32,6 +32,8 @@ interface TradePanelProps {
   myId: string;
   players: Player[];
   buildings: Building[]; // YENİ: Dinamik oran hesabı için
+  onBuyVictoryPoint?: () => void;
+  canBuyVP?: boolean;
 }
 
 // Dinamik Karaborsa Oranı Hesaplama
@@ -126,6 +128,18 @@ export function TradePanel(props: TradePanelProps) {
             <div className="text-[9px] text-gray-500 text-center mt-2 italic border-t border-slate-700 pt-1">
               Oranlar: 🏰Şehir=2, 🏠Köy=3, 🛤️Yol=4, ❌Yok=5
             </div>
+          </div>
+
+          {/* PUAN SATIN ALMA (YENİ) */}
+          <div className="border-t border-slate-700 mt-4 pt-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-yellow-400 font-bold">ZAFER PUANI 🏆</span>
+              <span className="text-[10px] text-gray-500">15 Altın = 1 VP</span>
+            </div>
+            <button onClick={() => props.onBuyVictoryPoint?.()} disabled={!props.canBuyVP} className={`w-full py-3 rounded-lg font-black shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2 ${props.canBuyVP ? 'bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border-2 border-yellow-300' : 'bg-slate-800 text-gray-500 cursor-not-allowed border border-slate-700'}`}>
+              <span className="text-xl">🏆</span>
+              <span>PUAN SATIN AL (15 💰)</span>
+            </button>
           </div>
         </div>
       )}

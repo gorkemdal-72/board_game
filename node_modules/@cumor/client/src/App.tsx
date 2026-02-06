@@ -378,6 +378,9 @@ function App() {
                 myId={myId || ''}
                 players={players}
                 buildings={buildings}
+                // YENİ PROPS
+                onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
+                canBuyVP={(players.find(p => p.id === myId)?.resources[ResourceType.GOLD] || 0) >= 15}
               />
             )}
 
