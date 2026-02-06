@@ -32,7 +32,7 @@ function App() {
   const [longestRoadPlayerId, setLongestRoadPlayerId] = useState<string | null>(null);
   const [largestArmyPlayerId, setLargestArmyPlayerId] = useState<string | null>(null);
   const [activeCartelPlayerId, setActiveCartelPlayerId] = useState<string | null>(null);
-  const [startRolls, setStartRolls] = useState<{ pId: string, roll: number | null }[]>([]);
+  const [startRolls, setStartRolls] = useState<{ playerId: string, roll: number | null }[]>([]);
 
   useEffect(() => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
