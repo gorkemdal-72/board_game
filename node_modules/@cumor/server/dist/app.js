@@ -7,7 +7,11 @@ const app = express();
 app.use(cors());
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-    cors: { origin: "*", methods: ["GET", "POST"] }
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+        credentials: false
+    }
 });
 const rooms = new Map();
 const playerRoomMap = new Map();

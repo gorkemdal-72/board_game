@@ -38,7 +38,10 @@ function App() {
     // VITE_SOCKET_URL kontrolü
     console.log('🔗 Connecting to Socket URL:', socketUrl);
 
-    socket = io(socketUrl, { transports: ['websocket'] });
+    socket = io(socketUrl, { 
+      transports: ['polling', 'websocket'], // Polling geri dönüşü ekle
+      withCredentials: false // CORS sorunlarını azaltmak için false
+    });
 
     socket.on('connect', () => {
       console.log('✅ Connected to server with ID:', socket.id);
