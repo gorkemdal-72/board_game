@@ -198,286 +198,176 @@ function App() {
         {!isInGame && <div className="z-10 w-full max-w-4xl px-4"><Lobby rooms={rooms} onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} /></div>}
         {isInGame && (
           <>
-            {/* DEBUG OVERLAY - REMOVE LATER */}
-            <div className="absolute top-0 right-0 z-[200] bg-black/80 text-green-400 p-2 text-xs font-mono pointer-events-none">
-               STATUS: {gameStatus} | MY_ID: {myId?.slice(0,4)} | ACTIVE: {activePlayerId?.slice(0,4)}
-               <br/>
-               ROLLS: {JSON.stringify(startRolls)}
-            </div>
+            {/* === BAŞLANGIÇ ZARI MODALI (BASITLEŞTİRİLMİŞ) === */}
+            {(gameStatus === GameStatus.ROLLING_FOR_START || gameStatus === 'rolling_for_start' as GameStatus) && (
+              <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
+                <div className="bg-slate-800 p-8 rounded-xl border border-slate-600 shadow-xl text-center max-w-lg w-full">
+                  <h2 className="text-2xl font-bold text-white mb-6">🎲 Başlangıç Zarları</h2>
 
-            {/* OYUNCU LİSTESİ */}
-            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-              {players.map(p => {
-                const isActive = activePlayerId === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${isActive
-                      ? 'bg-slate-700 border-yellow-500'
-                      : 'bg-slate-800/80 border-slate-600'
-                      }`}
-                  >
-                    {/* Renk */}
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                  <div className="grid grid-cols-1 gap-2 mb-6">
+                    {players.map(p => {
+                      const rollEntry = startRolls.find(r => r.playerId === p.id);
+                      const rollVal = rollEntry?.roll;
+                      const isActive = activePlayerId === p.id;
 
-                    {/* İsim */}
-                    <span className={`font-medium text-sm ${isActive ? 'text-white' : 'text-gray-300'}`}>
-                      {p.name}
-                    </span>
-
-                    {/* VP */}
-                    <span className="bg-yellow-600/30 text-yellow-400 px-2 py-0.5 rounded text-xs font-semibold">
-                      {p.victoryPoints} VP
-                    </span>
-
-                    {/* Rozetler */}
-                    {hostId === p.id && <span title="Host">👑</span>}
-                    {longestRoadPlayerId === p.id && <span title="En Uzun Yol">🛤️</span>}
-                    {largestArmyPlayerId === p.id && <span title="En Güçlü Ordu">⚔️</span>}
-                    {activeCartelPlayerId === p.id && <span title="Kartel">🏴‍☠️</span>}
+                      return (
+                        <div key={p.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isActive ? 'border-yellow-400 bg-yellow-400/10 scale-105' : 'border-slate-600 bg-slate-700/50'}`}>
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full shadow-lg" style={{ backgroundColor: p.color }}></div>
+                            <span className={`text-xl font-bold ${isActive ? 'text-white' : 'text-gray-400'}`}>{p.name} {isActive && '(Sıra Sende!)'}</span>
+                          </div>
+                          <div className="text-2xl font-black">
+                            {rollVal === null ? (isActive ? 'Zar Atıyor...' : 'Bekliyor...') : <span className="text-cyan-400">{rollVal} 🎲</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
 
-            {/* İNŞAAT MALİYETLERİ PANELİ - Sol Alt */}
-            {(() => {
-              const me = players.find(p => p.id === myId);
-              if (!me) return null;
-              const myBuildings = buildings.filter(b => b.ownerId === myId);
-              return (
-                <div className="absolute bottom-6 left-6 z-20">
-                  <BuildCostPanel
-                    playerResources={me.resources}
-                    buildingCounts={{
-                      settlements: myBuildings.filter(b => b.type === BuildingType.SETTLEMENT).length,
-                      cities: myBuildings.filter(b => b.type === BuildingType.CITY).length,
-                      roads: myBuildings.filter(b => b.type === BuildingType.ROAD).length,
-                    }}
-                  />
-                </div>
-              );
-            })()}
+                  {activePlayerId === myId ? (
+                    <button
+                      onClick={() => socket.emit('roll_dice_start')}
+                      className="bg-cyan-600 hover:bg-cyan-500 text-white text-xl py-4 px-12 rounded-full font-black shadow-[0_0_30px_rgba(8,145,178,0.6)] hover:scale-105 transition-transform animate-pulse"
+                    >
+                      ZAR AT! 🎲
+                    </button>
+                  ) : (
+                    <div className="text-gray-500 text-lg font-semibold italic">
+                      {players.find(p => p.id === activePlayerId)?.name} zar atıyor...
+                    </div>
+                  )}
 
-            {isMyTurn && (turnSubPhase === 'settlement' || turnSubPhase === 'road') && (
-              <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 animate-bounce">
-                <div className="bg-yellow-500 text-slate-900 px-8 py-3 rounded-full font-black shadow-[0_0_20px_rgba(234,179,8,0.5)] border-4 border-slate-900 text-xl tracking-wide">
-                  {turnSubPhase === 'settlement' ? "👇 KÖY KUR" : "👇 YOL KUR"}
+                  <p className="mt-6 text-gray-500 text-sm">En yüksek atan oyuna başlar. Eşitlikte tekrar atılır.</p>
                 </div>
               </div>
             )}
-            <div className="relative z-0 scale-100 transition-transform duration-700 ease-out">
-              <HexBoard
-                tiles={tiles}
-                buildings={buildings}
-                players={players}
-                onVertexClick={handleVertexClick}
-                onEdgeClick={handleEdgeClick}
-                onTileClick={handleTileClick} // YENİ PROP
-              />
-            </div>
-          </>
-        )}
-        {/* HIRSIZ MODU BİLDİRİMİ */}
-        {isMyTurn && (turnSubPhase as any) === 'robber' && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-            <div className="bg-red-600 text-white px-6 py-4 rounded-full font-black shadow-2xl border-4 border-slate-900 text-xl flex items-center gap-2">
-              <span>👮</span> VERGİ MEMURUNU TAŞI! (Bir araziye tıkla)
-            </div>
-          </div>
-        )}
 
-        {/* KARTEL AKTİF BANNER */}
-        {activeCartelPlayerId && (
-          <div className="absolute top-4 right-6 z-40">
-            <div className="bg-gradient-to-r from-purple-900 to-red-900 text-white px-6 py-3 rounded-xl font-bold shadow-2xl border-2 border-red-500 flex items-center gap-3 animate-pulse">
-              <span className="text-2xl">🏴‍☠️</span>
-              <div>
-                <div className="text-xs text-red-300 uppercase">KARTEL AKTİF!</div>
-                <div className="font-black">{players.find(p => p.id === activeCartelPlayerId)?.name} TÜM KAYNAKLARI ALIYOR</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* === BAŞLANGIÇ ZARI MODALI (YENİ) === */}
-        {(gameStatus === GameStatus.ROLLING_FOR_START || gameStatus === 'rolling_for_start' as GameStatus) && (
-          <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
-            <div className="bg-slate-800 p-8 rounded-3xl border-4 border-cyan-500 shadow-2xl text-center max-w-2xl w-full">
-              <h2 className="text-3xl font-black text-cyan-400 mb-6 tracking-wider">🎲 BAŞLANGIÇ SIRALAMASI</h2>
-
-              <div className="bg-slate-900/50 p-4 rounded-xl mb-6 border border-slate-700">
-                <div className="text-gray-400 text-sm mb-1 uppercase tracking-widest">Şu An Sıra</div>
-                <div className="text-2xl font-bold text-white">
-                  {players.find(p => p.id === activePlayerId)?.name || "Yükleniyor..."}
+            {/* --- KURBAN SEÇİM MODALI --- */}
+            {possibleVictims.length > 0 && (
+              <div className="absolute inset-0 bg-black/60 z-[60] flex items-center justify-center backdrop-blur-sm">
+                <div className="bg-slate-800 p-8 rounded-2xl border-2 border-red-500 shadow-2xl text-center">
+                  <h2 className="text-2xl font-black text-white mb-4">👮 KİME CEZA KESİLSİN?</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    {possibleVictims.map(vId => {
+                      const p = players.find(player => player.id === vId);
+                      return (
+                        <button
+                          key={vId}
+                          onClick={() => handleSelectVictim(vId)}
+                          className="bg-slate-700 hover:bg-red-600 text-white p-4 rounded-xl font-bold transition-all border border-slate-600 hover:scale-105 flex flex-col items-center"
+                        >
+                          <div className="w-8 h-8 rounded-full mb-2" style={{ backgroundColor: p?.color }}></div>
+                          {p?.name}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-                {activePlayerId === myId && <div className="text-green-400 font-bold animate-pulse mt-1">(SENİN SIRAN!)</div>}
               </div>
+            )}
 
-              <div className="grid grid-cols-1 gap-3 mb-8">
-                {players.map(p => {
-                  const rollEntry = startRolls.find(r => r.playerId === p.id);
-                  const rollVal = rollEntry?.roll;
-                  const isActive = activePlayerId === p.id;
+            {/* === OYUN SONU MODALI === */}
+            {gameStatus === GameStatus.FINISHED && winnerId && (
+              <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
+                <div className="bg-gradient-to-b from-yellow-900/90 to-slate-900/90 p-10 rounded-3xl border-4 border-yellow-500 shadow-[0_0_60px_rgba(234,179,8,0.5)] text-center max-w-lg">
+                  {/* Konfeti Efekti */}
+                  <div className="text-6xl mb-4 animate-bounce">🏆</div>
 
-                  return (
-                    <div key={p.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isActive ? 'border-yellow-400 bg-yellow-400/10 scale-105' : 'border-slate-600 bg-slate-700/50'}`}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full shadow-lg" style={{ backgroundColor: p.color }}></div>
-                        <span className={`text-xl font-bold ${isActive ? 'text-white' : 'text-gray-400'}`}>{p.name} {isActive && '(Sıra Sende!)'}</span>
-                      </div>
-                      <div className="text-2xl font-black">
-                        {rollVal === null ? (isActive ? 'Zar Atıyor...' : 'Bekliyor...') : <span className="text-cyan-400">{rollVal} 🎲</span>}
-                      </div>
+                  <h1 className="text-4xl font-black text-yellow-400 mb-2 tracking-wider">
+                    OYUN BİTTİ!
+                  </h1>
+
+                  <div className="text-2xl text-white font-bold mb-6">
+                    🎉 {players.find(p => p.id === winnerId)?.name} KAZANDI! 🎉
+                  </div>
+
+                  <div className="w-20 h-20 rounded-full mx-auto mb-6 border-4 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.6)]"
+                    style={{ backgroundColor: players.find(p => p.id === winnerId)?.color }}>
+                  </div>
+
+                  {/* SKOR TABLOSU */}
+                  <div className="bg-slate-800/50 rounded-xl p-4 mb-6">
+                    <h3 className="text-sm text-gray-400 uppercase font-bold mb-3">SKOR TABLOSU</h3>
+                    <div className="space-y-2">
+                      {players
+                        .sort((a, b) => b.victoryPoints - a.victoryPoints)
+                        .map((p, idx) => (
+                          <div key={p.id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${idx === 0 ? 'bg-yellow-500/20' : 'bg-slate-700/30'}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  '}</span>
+                              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.color }}></div>
+                              <span className="font-bold text-white">{p.name}</span>
+                            </div>
+                            <span className="text-yellow-400 font-bold">{p.victoryPoints} VP</span>
+                          </div>
+                        ))}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
 
-              {activePlayerId === myId ? (
-                <button
-                  onClick={() => socket.emit('roll_dice_start')}
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-xl py-4 px-12 rounded-full font-black shadow-[0_0_30px_rgba(8,145,178,0.6)] hover:scale-105 transition-transform animate-pulse"
-                >
-                  ZAR AT! 🎲
+                  <p className="text-gray-400 text-sm">
+                    Yeni oyun için sayfayı yenileyin
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && !hasRolled && (
+              <div className="absolute right-10 bottom-10 z-50">
+                <button onClick={handleRollDice} className="bg-red-600 hover:bg-red-500 text-white w-24 h-24 rounded-full font-black text-xl shadow-[0_0_30px_rgba(220,38,38,0.6)] border-4 border-slate-900 transition-transform active:scale-90 flex flex-col items-center justify-center gap-1">
+                  <span>🎲</span><span>ZAR AT</span>
                 </button>
-              ) : (
-                <div className="text-gray-500 text-lg font-semibold italic">
-                  {players.find(p => p.id === activePlayerId)?.name} zar atıyor...
-                </div>
-              )}
-
-              <p className="mt-6 text-gray-500 text-sm">En yüksek atan oyuna başlar. Eşitlikte tekrar atılır.</p>
-            </div>
-          </div>
-        )}
-
-        {/* --- KURBAN SEÇİM MODALI --- */}
-        {possibleVictims.length > 0 && (
-          <div className="absolute inset-0 bg-black/60 z-[60] flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-slate-800 p-8 rounded-2xl border-2 border-red-500 shadow-2xl text-center">
-              <h2 className="text-2xl font-black text-white mb-4">👮 KİME CEZA KESİLSİN?</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {possibleVictims.map(vId => {
-                  const p = players.find(player => player.id === vId);
-                  return (
-                    <button
-                      key={vId}
-                      onClick={() => handleSelectVictim(vId)}
-                      className="bg-slate-700 hover:bg-red-600 text-white p-4 rounded-xl font-bold transition-all border border-slate-600 hover:scale-105 flex flex-col items-center"
-                    >
-                      <div className="w-8 h-8 rounded-full mb-2" style={{ backgroundColor: p?.color }}></div>
-                      {p?.name}
-                    </button>
-                  )
-                })}
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* === OYUN SONU MODALI === */}
-        {gameStatus === GameStatus.FINISHED && winnerId && (
-          <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
-            <div className="bg-gradient-to-b from-yellow-900/90 to-slate-900/90 p-10 rounded-3xl border-4 border-yellow-500 shadow-[0_0_60px_rgba(234,179,8,0.5)] text-center max-w-lg">
-              {/* Konfeti Efekti */}
-              <div className="text-6xl mb-4 animate-bounce">🏆</div>
+            {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && hasRolled && (
+              <ActionPanel
+                onBuildRoad={startBuildRoad}
+                onBuildSettlement={startBuildSettlement}
+                onBuildCity={startBuildCity}
+                onBuyCard={handleBuyCard}
+                onEndTurn={handleEndTurn}
+                isBuilding={turnSubPhase === 'road' || turnSubPhase === 'settlement' || turnSubPhase === 'city' ? turnSubPhase : null}
+                onCancelBuild={cancelBuild}
+              />
+            )}
 
-              <h1 className="text-4xl font-black text-yellow-400 mb-2 tracking-wider">
-                OYUN BİTTİ!
-              </h1>
+            {/* TİCARET PANELİ */}
+            {isInGame && gameStatus === GameStatus.PLAYING && (
+              <TradePanel
+                onBankSell={handleBankSell}
+                onBankBuy={handleBankBuy}
+                onCreateOffer={handleCreateOffer}
+                onAcceptOffer={handleAcceptOffer}
+                onFinalizeTrade={handleFinalizeTrade}
+                onCancelOffer={handleCancelOffer}
+                currentOffer={currentOffer}
+                myId={myId || ''}
+                players={players}
+                buildings={buildings}
+              />
+            )}
 
-              <div className="text-2xl text-white font-bold mb-6">
-                🎉 {players.find(p => p.id === winnerId)?.name} KAZANDI! 🎉
-              </div>
+            {/* KAYNAK VE KART PANELİ */}
+            {isInGame && activePlayer && myId && (
+              <ResourcePanel
+                resources={players.find(p => p.id === myId)?.resources || {} as any}
+                devCards={players.find(p => p.id === myId)?.devCards || {} as any}
+                onPlayCard={handlePlayCard} // BAĞLANDI
+                isMyTurn={isMyTurn} // BAĞLANDI
+              />
+            )}
 
-              <div className="w-20 h-20 rounded-full mx-auto mb-6 border-4 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.6)]"
-                style={{ backgroundColor: players.find(p => p.id === winnerId)?.color }}>
-              </div>
 
-              {/* SKOR TABLOSU */}
-              <div className="bg-slate-800/50 rounded-xl p-4 mb-6">
-                <h3 className="text-sm text-gray-400 uppercase font-bold mb-3">SKOR TABLOSU</h3>
-                <div className="space-y-2">
-                  {players
-                    .sort((a, b) => b.victoryPoints - a.victoryPoints)
-                    .map((p, idx) => (
-                      <div key={p.id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${idx === 0 ? 'bg-yellow-500/20' : 'bg-slate-700/30'}`}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  '}</span>
-                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.color }}></div>
-                          <span className="font-bold text-white">{p.name}</span>
-                        </div>
-                        <span className="text-yellow-400 font-bold">{p.victoryPoints} VP</span>
-                      </div>
-                    ))}
+            {/* Bildirim Alanı (Return içinde uygun yere ekle)*/}
+            {isMyTurn && (turnSubPhase as any) === 'sabotage' && (
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+                <div className="bg-orange-600 text-white px-6 py-4 rounded-full font-black shadow-2xl border-4 border-slate-900 text-xl flex items-center gap-2">
+                  <span>💣</span> YIKILACAK YOLU SEÇ!
                 </div>
               </div>
+            )}
 
-              <p className="text-gray-400 text-sm">
-                Yeni oyun için sayfayı yenileyin
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && !hasRolled && (
-          <div className="absolute right-10 bottom-10 z-50">
-            <button onClick={handleRollDice} className="bg-red-600 hover:bg-red-500 text-white w-24 h-24 rounded-full font-black text-xl shadow-[0_0_30px_rgba(220,38,38,0.6)] border-4 border-slate-900 transition-transform active:scale-90 flex flex-col items-center justify-center gap-1">
-              <span>🎲</span><span>ZAR AT</span>
-            </button>
-          </div>
-        )}
-
-        {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && hasRolled && (
-          <ActionPanel
-            onBuildRoad={startBuildRoad}
-            onBuildSettlement={startBuildSettlement}
-            onBuildCity={startBuildCity}
-            onBuyCard={handleBuyCard}
-            onEndTurn={handleEndTurn}
-            isBuilding={turnSubPhase === 'road' || turnSubPhase === 'settlement' || turnSubPhase === 'city' ? turnSubPhase : null}
-            onCancelBuild={cancelBuild}
-          />
-        )}
-
-        {/* TİCARET PANELİ */}
-        {isInGame && gameStatus === GameStatus.PLAYING && (
-          <TradePanel
-            onBankSell={handleBankSell}
-            onBankBuy={handleBankBuy}
-            onCreateOffer={handleCreateOffer}
-            onAcceptOffer={handleAcceptOffer}
-            onFinalizeTrade={handleFinalizeTrade}
-            onCancelOffer={handleCancelOffer}
-            currentOffer={currentOffer}
-            myId={myId || ''}
-            players={players}
-            buildings={buildings}
-          />
-        )}
-
-        {/* KAYNAK VE KART PANELİ */}
-        {isInGame && activePlayer && myId && (
-          <ResourcePanel
-            resources={players.find(p => p.id === myId)?.resources || {} as any}
-            devCards={players.find(p => p.id === myId)?.devCards || {} as any}
-            onPlayCard={handlePlayCard} // BAĞLANDI
-            isMyTurn={isMyTurn} // BAĞLANDI
-          />
-        )}
-
-
-        {/* Bildirim Alanı (Return içinde uygun yere ekle)*/}
-        {isMyTurn && (turnSubPhase as any) === 'sabotage' && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-            <div className="bg-orange-600 text-white px-6 py-4 rounded-full font-black shadow-2xl border-4 border-slate-900 text-xl flex items-center gap-2">
-              <span>💣</span> YIKILACAK YOLU SEÇ!
-            </div>
-          </div>
-        )}
-
-      </main>
+          </main>
     </div>
   );
 }
