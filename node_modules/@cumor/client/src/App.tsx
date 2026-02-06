@@ -198,6 +198,13 @@ function App() {
         {!isInGame && <div className="z-10 w-full max-w-4xl px-4"><Lobby rooms={rooms} onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} /></div>}
         {isInGame && (
           <>
+            {/* DEBUG OVERLAY - REMOVE LATER */}
+            <div className="absolute top-0 right-0 z-[200] bg-black/80 text-green-400 p-2 text-xs font-mono pointer-events-none">
+               STATUS: {gameStatus} | MY_ID: {myId?.slice(0,4)} | ACTIVE: {activePlayerId?.slice(0,4)}
+               <br/>
+               ROLLS: {JSON.stringify(startRolls)}
+            </div>
+
             {/* OYUNCU LİSTESİ */}
             <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
               {players.map(p => {
