@@ -114,26 +114,49 @@ export class RoomManager {
         player.resources[sellResource] -= required;
         player.resources[ResourceType.GOLD] += 1;
     }
-    buyFromBlackMarket(playerId, buyResource) {
+    buyFromBlackMarket(playerId, resource) {
+        if (this.room.activePlayerId !== playerId)
+            throw new Error("Sıra sende değil!");
+        if (this.room.turnSubPhase !== 'settlement' && this.room.turnSubPhase !== 'road' && this.room.turnSubPhase !== 'city') {
+            throw new Error("Şu an ticaret yapamazsın.");
+        }
         const player = this.room.players.find(p => p.id === playerId);
         if (!player)
-            throw new Error("Oyuncu yok");
-        // Dinamik Karaborsa Oranı: Oyuncunun en iyi yapısına göre (araziden bağımsız)
+            throw new Error("Oyuncu bulunamadı.");
+        // Karaborsa fiyatını belirle
         const myBuildings = this.room.buildings.filter(b => b.ownerId === playerId);
-        const hasCity = myBuildings.some(b => b.type === BuildingType.CITY);
-        const hasSettlement = myBuildings.some(b => b.type === BuildingType.SETTLEMENT);
-        const hasRoad = myBuildings.some(b => b.type === BuildingType.ROAD);
-        let cost = 5; // Hiç yapı yoksa
-        if (hasCity)
-            cost = 2; // Şehir varsa en iyi oran
-        else if (hasSettlement)
-            cost = 3; // Köy varsa
-        else if (hasRoad)
-            cost = 4; // Sadece yol varsa
-        if (player.resources[ResourceType.GOLD] < cost)
-            throw new Error(`Yetersiz Altın! ${cost} Altın gerekli.`);
-        player.resources[ResourceType.GOLD] -= cost;
-        player.resources[buyResource] += 1;
+        let rate = 5;
+        if (myBuildings.some(b => b.type === BuildingType.CITY))
+            rate = 2;
+        else if (myBuildings.some(b => b.type === BuildingType.SETTLEMENT))
+            rate = 3;
+        else if (myBuildings.some(b => b.type === BuildingType.ROAD))
+            rate = 4;
+        if ((player.resources[ResourceType.GOLD] || 0) < rate) {
+            throw new Error(`Yeterli altın yok! (${rate} Altın gerekli)`);
+        }
+        player.resources[ResourceType.GOLD] -= rate;
+        player.resources[resource] = (player.resources[resource] || 0) + 1;
+        return `Karaborsadan ${rate} altına 1 ${resource} alındı.`;
+    }
+    // 15 Kuralı: 15 Altın = 1 VP
+    buyVictoryPoint(playerId) {
+        if (this.room.activePlayerId !== playerId)
+            throw new Error("Sıra sende değil!");
+        // Sadece ana fazda (inşaat vs) yapılabilir
+        if (this.room.turnSubPhase !== 'settlement' && this.room.turnSubPhase !== 'road' && this.room.turnSubPhase !== 'city') {
+            throw new Error("Şu an puan satın alamazsın.");
+        }
+        const player = this.room.players.find(p => p.id === playerId);
+        if (!player)
+            throw new Error("Oyuncu bulunamadı.");
+        if ((player.resources[ResourceType.GOLD] || 0) < 15) {
+            throw new Error("Yeterli altın yok! (15 Altın gerekli)");
+        }
+        // İşlem
+        player.resources[ResourceType.GOLD] -= 15;
+        player.victoryPoints += 1;
+        return `${player.name}, 15 Altın ödeyerek 1 Zafer Puanı satın aldı! 🏆`;
     }
     // KART SATIN ALMA [cite: 71]
     buyDevelopmentCard(playerId) {

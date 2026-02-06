@@ -252,7 +252,22 @@ io.on('connection', (socket) => {
   socket.on('buy_black_market', (data) => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
-      if (room) { room.buyFromBlackMarket(socket.id, data.resource); io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState()); }
+      if (room) {
+        const msg = room.buyFromBlackMarket(socket.id, data.resource);
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+        socket.emit('system_alert', { message: msg });
+      }
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
+  });
+
+  socket.on('buy_victory_point', () => {
+    try {
+      const room = rooms.get(playerRoomMap.get(socket.id)!);
+      if (room) {
+        const msg = room.buyVictoryPoint(socket.id);
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+        io.to(room.getRoomInfo().id).emit('system_alert', { message: msg });
+      }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
@@ -319,9 +334,9 @@ io.on('connection', (socket) => {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
       if (room) {
         const message = room.rollStartDice(socket.id);
-         io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
-         io.to(room.getRoomInfo().id).emit('system_alert', { message });
-         io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+        io.to(room.getRoomInfo().id).emit('system_alert', { message });
+        io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });

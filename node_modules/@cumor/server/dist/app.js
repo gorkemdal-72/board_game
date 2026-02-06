@@ -270,8 +270,22 @@ io.on('connection', (socket) => {
         try {
             const room = rooms.get(playerRoomMap.get(socket.id));
             if (room) {
-                room.buyFromBlackMarket(socket.id, data.resource);
+                const msg = room.buyFromBlackMarket(socket.id, data.resource);
                 io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+                socket.emit('system_alert', { message: msg });
+            }
+        }
+        catch (e) {
+            socket.emit('error_message', { message: e.message });
+        }
+    });
+    socket.on('buy_victory_point', () => {
+        try {
+            const room = rooms.get(playerRoomMap.get(socket.id));
+            if (room) {
+                const msg = room.buyVictoryPoint(socket.id);
+                io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+                io.to(room.getRoomInfo().id).emit('system_alert', { message: msg });
             }
         }
         catch (e) {
