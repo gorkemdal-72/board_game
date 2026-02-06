@@ -300,11 +300,11 @@ function App() {
               <h2 className="text-3xl font-black text-cyan-400 mb-6 tracking-wider">🎲 BAŞLANGIÇ SIRALAMASI</h2>
 
               <div className="bg-slate-900/50 p-4 rounded-xl mb-6 border border-slate-700">
-                 <div className="text-gray-400 text-sm mb-1 uppercase tracking-widest">Şu An Sıra</div>
-                 <div className="text-2xl font-bold text-white">
-                   {players.find(p => p.id === activePlayerId)?.name || "Yükleniyor..."}
-                 </div>
-                 {activePlayerId === myId && <div className="text-green-400 font-bold animate-pulse mt-1">(SENİN SIRAN!)</div>}
+                <div className="text-gray-400 text-sm mb-1 uppercase tracking-widest">Şu An Sıra</div>
+                <div className="text-2xl font-bold text-white">
+                  {players.find(p => p.id === activePlayerId)?.name || "Yükleniyor..."}
+                </div>
+                {activePlayerId === myId && <div className="text-green-400 font-bold animate-pulse mt-1">(SENİN SIRAN!)</div>}
               </div>
 
               <div className="grid grid-cols-1 gap-3 mb-8">
@@ -327,13 +327,17 @@ function App() {
                 })}
               </div>
 
-              {activePlayerId === myId && (
+              {activePlayerId === myId ? (
                 <button
                   onClick={() => socket.emit('roll_dice_start')}
                   className="bg-cyan-600 hover:bg-cyan-500 text-white text-xl py-4 px-12 rounded-full font-black shadow-[0_0_30px_rgba(8,145,178,0.6)] hover:scale-105 transition-transform animate-pulse"
                 >
                   ZAR AT! 🎲
                 </button>
+              ) : (
+                <div className="text-gray-500 text-lg font-semibold italic">
+                  {players.find(p => p.id === activePlayerId)?.name} zar atıyor...
+                </div>
               )}
 
               <p className="mt-6 text-gray-500 text-sm">En yüksek atan oyuna başlar. Eşitlikte tekrar atılır.</p>
