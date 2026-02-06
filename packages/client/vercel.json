@@ -1,5 +1,4 @@
 {
   "installCommand": "cd ../.. && npm install --legacy-peer-deps",
-  "buildCommand": "npx vite build",
   "outputDirectory": "dist"
 }
