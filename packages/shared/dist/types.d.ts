@@ -25,7 +25,8 @@ export declare enum GameStatus {
     SETUP_ROUND_1 = "setup_round_1",
     SETUP_ROUND_2 = "setup_round_2",
     PLAYING = "playing",
-    FINISHED = "finished"
+    FINISHED = "finished",
+    ROLLING_FOR_START = "rolling_for_start"
 }
 export interface Player {
     id: string;
@@ -80,6 +81,10 @@ export interface GameState {
     longestRoadPlayerId: string | null;
     largestArmyPlayerId: string | null;
     activeCartelPlayerId: string | null;
+    startRolls: {
+        playerId: string;
+        roll: number | null;
+    }[];
 }
 export interface RoomInfo {
     id: string;

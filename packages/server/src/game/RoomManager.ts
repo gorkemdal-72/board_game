@@ -72,6 +72,7 @@ export class RoomManager {
       longestRoadPlayerId: null,
       largestArmyPlayerId: null,
       activeCartelPlayerId: null,
+      startRolls: []
     };
     this.initializeDeck(); // Desteyi karıştır
   }
@@ -905,39 +906,93 @@ export class RoomManager {
     this.room.activePlayerId = this.room.players[idx].id;
     this.room.turnSubPhase = 'settlement';
   }
+
   startGame(reqId: string) {
     if (reqId !== this.room.hostId) throw new Error("Sadece Host!");
     if (this.room.players.length < 3 || this.room.players.length > 4) throw new Error("Oyunu başlatmak için 3 veya 4 kişi gerekli!");
 
-    // 1. ZAR ATMA: Herkes için 2d6 at
-    const rolls = this.room.players.map(p => {
-      const d1 = Math.floor(Math.random() * 6) + 1;
-      const d2 = Math.floor(Math.random() * 6) + 1;
-      return { id: p.id, name: p.name, total: d1 + d2 };
-    });
+    // Manuel Zar Aşamasına Geç
+    this.room.status = GameStatus.ROLLING_FOR_START;
+    this.room.startRolls = this.room.players.map(p => ({ playerId: p.id, roll: null }));
+    this.room.activePlayerId = this.room.players[0].id; // Host başlar
 
-    // 2. SIRALAMA: Zara göre azalan (Eşitlikte rastgele)
-    rolls.sort((a, b) => b.total - a.total || Math.random() - 0.5);
-
-    // 3. Oyuncu listesini güncelle
-    const newOrder: any[] = [];
-    rolls.forEach(r => {
-      const player = this.room.players.find(p => p.id === r.id);
-      if (player) {
-        player.resources[ResourceType.GOLD] = 3; // Başlangıç altını
-        newOrder.push(player);
-      }
-    });
-    this.room.players = newOrder;
-
-    this.room.status = GameStatus.SETUP_ROUND_1;
-    this.room.activePlayerId = this.room.players[0].id;
-    this.room.turnSubPhase = 'settlement';
-
-    // 4. SONUÇ MESAJI
-    const rollText = rolls.map(r => `${r.name}(${r.total})`).join(', ');
-    return `Başlangıç Zarları: ${rollText}. ${this.room.players[0].name} Başlıyor! 🎲`;
+    return "Zar atma aşaması başladı! Sırayla zar atın.";
   }
+
+  rollStartDice(playerId: string) {
+    if (this.room.status !== GameStatus.ROLLING_FOR_START) throw new Error("Şu an başlangıç zarı atılmıyor.");
+    if (this.room.activePlayerId !== playerId) throw new Error("Sıra sende değil!");
+
+    const playerRollEntry = this.room.startRolls.find(r => r.playerId === playerId);
+    if (!playerRollEntry) throw new Error("Listede yoksun.");
+    if (playerRollEntry.roll !== null) throw new Error("Zaten zar attın.");
+
+    // Zar At
+    const d1 = Math.floor(Math.random() * 6) + 1;
+    const d2 = Math.floor(Math.random() * 6) + 1;
+    playerRollEntry.roll = d1 + d2;
+
+    const msg = `${this.room.players.find(p => p.id === playerId)?.name} attı: ${d1 + d2} 🎲`;
+
+    // Herkes attı mı?
+    const waitingPlayers = this.room.startRolls.filter(r => r.roll === null);
+    if (waitingPlayers.length > 0) {
+      // Sıradaki oyuncuya geç
+      let nextIdx = (this.room.players.findIndex(p => p.id === playerId) + 1) % this.room.players.length;
+      while (true) {
+         const nextP = this.room.players[nextIdx];
+         const entry = this.room.startRolls.find(r => r.playerId === nextP.id);
+         if (entry && entry.roll === null) {
+            this.room.activePlayerId = nextP.id;
+            break;
+         }
+         nextIdx = (nextIdx + 1) % this.room.players.length;
+      }
+      return `${msg}. Sıra sonraki oyuncuda.`;
+    } else {
+      // HERKES ATTI - KAZANANI BELİRLE
+      let maxRoll = -1;
+      this.room.startRolls.forEach(r => { if (r.roll! > maxRoll) maxRoll = r.roll!; });
+
+      const winners = this.room.startRolls.filter(r => r.roll === maxRoll);
+
+      if (winners.length === 1) {
+        // KAZANAN VAR!
+        const winnerId = winners[0].playerId;
+        const winnerName = this.room.players.find(p => p.id === winnerId)?.name;
+
+        // Sıralamayı güncelle
+        const winIdx = this.room.players.findIndex(p => p.id === winnerId);
+        const newOrder = [
+            ...this.room.players.slice(winIdx),
+            ...this.room.players.slice(0, winIdx)
+        ];
+        this.room.players = newOrder;
+
+        // Setup Phase Başlat
+        this.room.players.forEach(p => p.resources[ResourceType.GOLD] = 3);
+        this.room.status = GameStatus.SETUP_ROUND_1;
+        this.room.activePlayerId = this.room.players[0].id;
+        this.room.turnSubPhase = 'settlement';
+
+        // Start roll verisini temizle
+        this.room.startRolls = [];
+
+        return `${msg}. KAZANAN: ${winnerName} (${maxRoll})! Oyun Başlıyor!`;
+
+      } else {
+        // EŞİTLİK (TIE)
+        const tieNames = winners.map(w => this.room.players.find(p => p.id === w.playerId)?.name).join(', ');
+
+        winners.forEach(w => w.roll = null);
+
+        this.room.activePlayerId = winners[0].playerId;
+
+        return `${msg}. EŞİTLİK! En yüksek (${maxRoll}) atanlar (${tieNames}) tekrar atacak.`;
+      }
+    }
+  }
+
   getRoomInfo(): RoomInfo { return { id: this.room.id, name: this.name, playerCount: this.room.players.length, maxPlayers: 4, isLocked: !!this.password, status: this.room.status }; }
   getGameState() { return this.room; }
   removePlayer(id: string) { this.room.players = this.room.players.filter(p => p.id !== id); }

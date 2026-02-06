@@ -30,7 +30,8 @@ export enum GameStatus {
   SETUP_ROUND_1 = 'setup_round_1',
   SETUP_ROUND_2 = 'setup_round_2',
   PLAYING = 'playing',
-  FINISHED = 'finished'
+  FINISHED = 'finished',
+  ROLLING_FOR_START = 'rolling_for_start'
 }
 
 export interface Player {
@@ -90,6 +91,7 @@ export interface GameState {
   longestRoadPlayerId: string | null;   // En Uzun Yol sahibi (+2 VP)
   largestArmyPlayerId: string | null;   // En Güçlü Ordu sahibi (+2 VP)
   activeCartelPlayerId: string | null;  // Kartel aktif mi? Kimde?
+  startRolls: { playerId: string, roll: number | null }[]; // Başlangıç zarları
 }
 
 export interface RoomInfo {

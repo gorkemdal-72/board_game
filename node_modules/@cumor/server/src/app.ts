@@ -313,6 +313,18 @@ io.on('connection', (socket) => {
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
+
+  socket.on('roll_dice_start', () => {
+    try {
+      const room = rooms.get(playerRoomMap.get(socket.id)!);
+      if (room) {
+        const message = room.rollStartDice(socket.id);
+         io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+         io.to(room.getRoomInfo().id).emit('system_alert', { message });
+         io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+      }
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
+  });
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;

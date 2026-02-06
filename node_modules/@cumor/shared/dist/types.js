@@ -31,6 +31,7 @@ export var GameStatus;
     GameStatus["SETUP_ROUND_2"] = "setup_round_2";
     GameStatus["PLAYING"] = "playing";
     GameStatus["FINISHED"] = "finished";
+    GameStatus["ROLLING_FOR_START"] = "rolling_for_start";
 })(GameStatus || (GameStatus = {}));
 export var PlayerColor;
 (function (PlayerColor) {

@@ -32,28 +32,20 @@ function App() {
   const [longestRoadPlayerId, setLongestRoadPlayerId] = useState<string | null>(null);
   const [largestArmyPlayerId, setLargestArmyPlayerId] = useState<string | null>(null);
   const [activeCartelPlayerId, setActiveCartelPlayerId] = useState<string | null>(null);
+  const [startRolls, setStartRolls] = useState<{ pId: string, roll: number | null }[]>([]);
 
   useEffect(() => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
-    // VITE_SOCKET_URL kontrolü
     console.log('🔗 Connecting to Socket URL:', socketUrl);
 
-    socket = io(socketUrl, { 
-      transports: ['polling', 'websocket'], // Polling geri dönüşü ekle
-      withCredentials: false // CORS sorunlarını azaltmak için false
-    });
+    socket = io(socketUrl, { transports: ['polling', 'websocket'], withCredentials: false });
 
-    socket.on('connect', () => {
-      console.log('✅ Connected to server with ID:', socket.id);
-      setIsConnected(true);
-      setMyId(socket.id || null);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('❌ Connection Error:', err.message);
-    });
+    socket.on('connect', () => { setIsConnected(true); setMyId(socket.id || null); });
+    socket.on('connect_error', (err) => console.error('❌ Connection', err));
     socket.on('disconnect', () => setIsConnected(false));
-    socket.on('room_list_update', (roomList: RoomInfo[]) => setRooms(roomList));
+
+    socket.on('room_list_update', setRooms);
+
     socket.on('game_state_update', (gameState: GameState) => {
       setTiles(gameState.tiles);
       setPlayers(gameState.players);
@@ -64,11 +56,11 @@ function App() {
       if (gameState.currentTradeOffer !== undefined) setCurrentOffer(gameState.currentTradeOffer);
       if (gameState.turnSubPhase) setTurnSubPhase(gameState.turnSubPhase);
 
-      // CUMOR: Yeni Alanlar
       setWinnerId((gameState as any).winnerId || null);
       setLongestRoadPlayerId((gameState as any).longestRoadPlayerId || null);
       setLargestArmyPlayerId((gameState as any).largestArmyPlayerId || null);
       setActiveCartelPlayerId((gameState as any).activeCartelPlayerId || null);
+      setStartRolls((gameState as any).startRolls || []);
     });
     socket.on('dice_result', (data: { die1: number, die2: number, total: number }) => {
       setHasRolled(true);
@@ -297,6 +289,46 @@ function App() {
                 <div className="text-xs text-red-300 uppercase">KARTEL AKTİF!</div>
                 <div className="font-black">{players.find(p => p.id === activeCartelPlayerId)?.name} TÜM KAYNAKLARI ALIYOR</div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* === BAŞLANGIÇ ZARI MODALI (YENİ) === */}
+        {gameStatus === GameStatus.ROLLING_FOR_START && (
+          <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
+            <div className="bg-slate-800 p-8 rounded-3xl border-4 border-cyan-500 shadow-2xl text-center max-w-2xl w-full">
+              <h2 className="text-3xl font-black text-cyan-400 mb-6 tracking-wider">🎲 BAŞLANGIÇ SIRALAMASI</h2>
+
+              <div className="grid grid-cols-1 gap-3 mb-8">
+                {players.map(p => {
+                  const rollEntry = startRolls.find(r => r.playerId === p.id);
+                  const rollVal = rollEntry?.roll;
+                  const isActive = activePlayerId === p.id;
+
+                  return (
+                    <div key={p.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isActive ? 'border-yellow-400 bg-yellow-400/10 scale-105' : 'border-slate-600 bg-slate-700/50'}`}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full shadow-lg" style={{ backgroundColor: p.color }}></div>
+                        <span className={`text-xl font-bold ${isActive ? 'text-white' : 'text-gray-400'}`}>{p.name} {isActive && '(Sıra Sende!)'}</span>
+                      </div>
+                      <div className="text-2xl font-black">
+                        {rollVal === null ? (isActive ? 'Zar Atıyor...' : 'Bekliyor...') : <span className="text-cyan-400">{rollVal} 🎲</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {activePlayerId === myId && (
+                <button
+                  onClick={() => socket.emit('roll_dice_start')}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-xl py-4 px-12 rounded-full font-black shadow-[0_0_30px_rgba(8,145,178,0.6)] hover:scale-105 transition-transform animate-pulse"
+                >
+                  ZAR AT! 🎲
+                </button>
+              )}
+
+              <p className="mt-6 text-gray-500 text-sm">En yüksek atan oyuna başlar. Eşitlikte tekrar atılır.</p>
             </div>
           </div>
         )}
