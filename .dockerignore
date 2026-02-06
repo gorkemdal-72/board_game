@@ -1,8 +1,28 @@
-node_modules
-packages/*/node_modules
+# Ignore all node_modules
+**/node_modules
+
+# Git
 .git
+.gitignore
+
+# Logs
 *.log
+npm-debug.log*
+
+# Environment
 .env
 .env.*
-dist
+
+# Build outputs (will be rebuilt)
+**/dist
+
+# Client package (not needed for server)
 packages/client
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
