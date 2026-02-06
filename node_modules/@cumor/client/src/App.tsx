@@ -223,20 +223,20 @@ function App() {
             {isInGame && !hasRolled && (
               <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
                 {gameStatus.includes('setup') && isMyTurn && (
-                   <div className="bg-slate-900/80 text-white px-6 py-3 rounded-full border border-yellow-500 shadow-xl backdrop-blur text-xl font-bold animate-bounce">
-                      {turnSubPhase === 'settlement' && "🏠 Bir Köy Yerleştir"}
-                      {turnSubPhase === 'road' && "🛣️ Bir Yol Yerleştir"}
-                   </div>
+                  <div className="bg-slate-900/80 text-white px-6 py-3 rounded-full border border-yellow-500 shadow-xl backdrop-blur text-xl font-bold animate-bounce">
+                    {turnSubPhase === 'settlement' && "🏠 Bir Köy Yerleştir"}
+                    {turnSubPhase === 'road' && "🛣️ Bir Yol Yerleştir"}
+                  </div>
                 )}
                 {gameStatus.includes('setup') && !isMyTurn && (
-                   <div className="bg-slate-900/60 text-gray-400 px-4 py-2 rounded-full border border-slate-700 backdrop-blur text-sm">
-                      ⏳ {activePlayer?.name} yerleştirme yapıyor...
-                   </div>
+                  <div className="bg-slate-900/60 text-gray-400 px-4 py-2 rounded-full border border-slate-700 backdrop-blur text-sm">
+                    ⏳ {activePlayer?.name} yerleştirme yapıyor...
+                  </div>
                 )}
                 {gameStatus === GameStatus.PLAYING && !isMyTurn && (
-                   <div className="bg-slate-900/60 text-gray-400 px-4 py-2 rounded-full border border-slate-700 backdrop-blur text-sm">
-                      ⏳ {activePlayer?.name} oynuyor...
-                   </div>
+                  <div className="bg-slate-900/60 text-gray-400 px-4 py-2 rounded-full border border-slate-700 backdrop-blur text-sm">
+                    ⏳ {activePlayer?.name} oynuyor...
+                  </div>
                 )}
               </div>
             )}
@@ -250,13 +250,13 @@ function App() {
                   <div key={p.id} className={`flex items-center gap-2 px-3 py-2 rounded-md border shadow-lg transition-all ${isActive ? 'bg-slate-800 border-yellow-400 text-white scale-105' : 'bg-slate-900/60 border-slate-700 text-gray-400'}`}>
                     <div className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: p.color }} />
                     <div className="flex flex-col leading-tight">
-                        <span className="font-bold text-sm">{p.name} {isMe && '(Sen)'}</span>
-                        <span className="text-xs text-yellow-500 font-mono">{p.victoryPoints} VP</span>
+                      <span className="font-bold text-sm">{p.name} {isMe && '(Sen)'}</span>
+                      <span className="text-xs text-yellow-500 font-mono">{p.victoryPoints} VP</span>
                     </div>
                     {isActive && (
-                        <div className="ml-2 bg-yellow-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse">
-                            {isMe ? 'SIRA SENDE!' : 'DÜŞÜNÜYOR...'}
-                        </div>
+                      <div className="ml-2 bg-yellow-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                        {isMe ? 'SIRA SENDE!' : 'DÜŞÜNÜYOR...'}
+                      </div>
                     )}
                   </div>
                 );
@@ -413,6 +413,18 @@ function App() {
                 devCards={players.find(p => p.id === myId)?.devCards || {} as any}
                 onPlayCard={handlePlayCard} // BAĞLANDI
                 isMyTurn={isMyTurn} // BAĞLANDI
+              />
+            )}
+
+            {/* MALİYET PANELİ */}
+            {isInGame && myId && (
+              <BuildCostPanel
+                playerResources={players.find(p => p.id === myId)?.resources || {} as any}
+                buildingCounts={{
+                  settlements: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.SETTLEMENT).length,
+                  cities: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.CITY).length,
+                  roads: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.ROAD).length,
+                }}
               />
             )}
 
