@@ -335,5 +335,6 @@ io.on('connection', (socket) => {
         }
     });
 });
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => console.log(`🚀 Server ${PORT} portunda çalışıyor!`));
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+// @ts-ignore
+httpServer.listen(PORT, "0.0.0.0", () => console.log(`🚀 Server 0.0.0.0:${PORT} adresinde çalışıyor!`));
