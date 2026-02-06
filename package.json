@@ -1,11 +1,11 @@
 {
-  "name": "cax-game",
+  "name": "cumor",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w @cax/server\" \"npm run dev -w @cax/client\"",
+    "dev": "concurrently \"npm run dev -w @cumor/server\" \"npm run dev -w @cumor/client\"",
     "build": "npm run build --workspaces"
   },
   "devDependencies": {
