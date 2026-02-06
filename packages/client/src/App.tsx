@@ -184,12 +184,21 @@ function App() {
           </div>
         )}
         {isInGame && (
-          <div className="flex items-center gap-3 bg-slate-700 px-4 py-2 rounded-lg">
-            <div className="text-right">
-              <div className="text-xs text-gray-400">Sıradaki</div>
-              <div className="font-semibold">{activePlayer?.name || "..."}</div>
+          <div className="flex items-center gap-4">
+             {/* BEN KİMİM? */}
+             <div className="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600">
+                <span className="text-xs text-gray-400 uppercase">SEN:</span>
+                <span className="font-bold text-cyan-400">{players.find(p => p.id === myId)?.name}</span>
+             </div>
+
+             {/* SIRADAKİ OYUNCU */}
+             <div className="flex items-center gap-3 bg-slate-700 px-4 py-2 rounded-lg border border-slate-600">
+              <div className="text-right">
+                <div className="text-xs text-gray-400">Sıradaki</div>
+                <div className="font-semibold">{activePlayer?.name || "..."}</div>
+              </div>
+              <div className="w-6 h-6 rounded border border-white/20 shadow-sm" style={{ backgroundColor: activePlayer?.color || 'gray' }}></div>
             </div>
-            <div className="w-6 h-6 rounded" style={{ backgroundColor: activePlayer?.color || 'gray' }}></div>
           </div>
         )}
       </header>
@@ -214,12 +223,19 @@ function App() {
             <div className="absolute top-4 left-4 flex flex-col gap-2 z-10 pointer-events-none">
               {players.map(p => {
                 const isActive = activePlayerId === p.id;
+                const isMe = p.id === myId;
                 return (
-                  <div key={p.id} className={`flex items-center gap-2 px-3 py-1 rounded-md border shadow-sm ${isActive ? 'bg-slate-800 border-yellow-400 text-white' : 'bg-slate-900/60 border-slate-700 text-gray-400'}`}>
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-                    <span className="font-bold text-sm">{p.name}</span>
-                    <span className="text-xs text-yellow-500 ml-1">{p.victoryPoints} VP</span>
-                    {isActive && <span className="text-xs animate-pulse">👈</span>}
+                  <div key={p.id} className={`flex items-center gap-2 px-3 py-2 rounded-md border shadow-lg transition-all ${isActive ? 'bg-slate-800 border-yellow-400 text-white scale-105' : 'bg-slate-900/60 border-slate-700 text-gray-400'}`}>
+                    <div className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: p.color }} />
+                    <div className="flex flex-col leading-tight">
+                        <span className="font-bold text-sm">{p.name} {isMe && '(Sen)'}</span>
+                        <span className="text-xs text-yellow-500 font-mono">{p.victoryPoints} VP</span>
+                    </div>
+                    {isActive && (
+                        <div className="ml-2 bg-yellow-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                            {isMe ? 'SIRA SENDE!' : 'DÜŞÜNÜYOR...'}
+                        </div>
+                    )}
                   </div>
                 );
               })}
