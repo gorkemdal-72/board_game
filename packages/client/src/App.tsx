@@ -35,8 +35,20 @@ function App() {
 
   useEffect(() => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+    // VITE_SOCKET_URL kontrolü
+    console.log('🔗 Connecting to Socket URL:', socketUrl);
+
     socket = io(socketUrl, { transports: ['websocket'] });
-    socket.on('connect', () => { setIsConnected(true); setMyId(socket.id || null); });
+
+    socket.on('connect', () => {
+      console.log('✅ Connected to server with ID:', socket.id);
+      setIsConnected(true);
+      setMyId(socket.id || null);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Connection Error:', err.message);
+    });
     socket.on('disconnect', () => setIsConnected(false));
     socket.on('room_list_update', (roomList: RoomInfo[]) => setRooms(roomList));
     socket.on('game_state_update', (gameState: GameState) => {
