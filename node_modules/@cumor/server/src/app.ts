@@ -33,8 +33,7 @@ const io = new Server(httpServer, {
 const rooms = new Map<string, RoomManager>();
 const playerRoomMap = new Map<string, string>();
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
-httpServer.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
+
 
 io.on('connection', (socket) => {
   console.log(`🔌 Yeni bağlantı: ${socket.id}`);

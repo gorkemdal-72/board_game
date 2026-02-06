@@ -24,8 +24,6 @@ const io = new Server(httpServer, {
 });
 const rooms = new Map();
 const playerRoomMap = new Map();
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
-httpServer.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
 io.on('connection', (socket) => {
     console.log(`🔌 Yeni bağlantı: ${socket.id}`);
     socket.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
