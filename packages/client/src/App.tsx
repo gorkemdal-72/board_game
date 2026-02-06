@@ -294,10 +294,18 @@ function App() {
         )}
 
         {/* === BAŞLANGIÇ ZARI MODALI (YENİ) === */}
-        {gameStatus === GameStatus.ROLLING_FOR_START && (
+        {(gameStatus === GameStatus.ROLLING_FOR_START || gameStatus === 'rolling_for_start' as GameStatus) && (
           <div className="absolute inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-md">
             <div className="bg-slate-800 p-8 rounded-3xl border-4 border-cyan-500 shadow-2xl text-center max-w-2xl w-full">
               <h2 className="text-3xl font-black text-cyan-400 mb-6 tracking-wider">🎲 BAŞLANGIÇ SIRALAMASI</h2>
+
+              <div className="bg-slate-900/50 p-4 rounded-xl mb-6 border border-slate-700">
+                 <div className="text-gray-400 text-sm mb-1 uppercase tracking-widest">Şu An Sıra</div>
+                 <div className="text-2xl font-bold text-white">
+                   {players.find(p => p.id === activePlayerId)?.name || "Yükleniyor..."}
+                 </div>
+                 {activePlayerId === myId && <div className="text-green-400 font-bold animate-pulse mt-1">(SENİN SIRAN!)</div>}
+              </div>
 
               <div className="grid grid-cols-1 gap-3 mb-8">
                 {players.map(p => {
