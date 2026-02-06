@@ -65,8 +65,9 @@ io.on('connection', (socket) => {
         try {
             const room = rooms.get(playerRoomMap.get(socket.id));
             if (room) {
-                room.startGame(socket.id);
+                const message = room.startGame(socket.id);
                 io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+                io.to(room.getRoomInfo().id).emit('system_alert', { message });
                 io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
             }
         }

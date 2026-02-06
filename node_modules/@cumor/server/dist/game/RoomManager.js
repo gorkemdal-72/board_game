@@ -842,10 +842,30 @@ export class RoomManager {
     startGame(reqId) {
         if (reqId !== this.room.hostId)
             throw new Error("Sadece Host!");
-        this.room.players.sort(() => Math.random() - 0.5).forEach(p => p.resources[ResourceType.GOLD] = 3);
+        // 1. ZAR ATMA: Herkes için 2d6 at
+        const rolls = this.room.players.map(p => {
+            const d1 = Math.floor(Math.random() * 6) + 1;
+            const d2 = Math.floor(Math.random() * 6) + 1;
+            return { id: p.id, name: p.name, total: d1 + d2 };
+        });
+        // 2. SIRALAMA: Zara göre azalan (Eşitlikte rastgele)
+        rolls.sort((a, b) => b.total - a.total || Math.random() - 0.5);
+        // 3. Oyuncu listesini güncelle
+        const newOrder = [];
+        rolls.forEach(r => {
+            const player = this.room.players.find(p => p.id === r.id);
+            if (player) {
+                player.resources[ResourceType.GOLD] = 3; // Başlangıç altını
+                newOrder.push(player);
+            }
+        });
+        this.room.players = newOrder;
         this.room.status = GameStatus.SETUP_ROUND_1;
         this.room.activePlayerId = this.room.players[0].id;
         this.room.turnSubPhase = 'settlement';
+        // 4. SONUÇ MESAJI
+        const rollText = rolls.map(r => `${r.name}(${r.total})`).join(', ');
+        return `Başlangıç Zarları: ${rollText}. ${this.room.players[0].name} Başlıyor! 🎲`;
     }
     getRoomInfo() { return { id: this.room.id, name: this.name, playerCount: this.room.players.length, maxPlayers: 4, isLocked: !!this.password, status: this.room.status }; }
     getGameState() { return this.room; }
