@@ -88,16 +88,16 @@ io.on('connection', (socket) => {
       if (room) {
         // Hırsızı taşı ve potansiyel kurbanları al
         const victims = room.moveRobber(socket.id, coords);
-        
+
         io.to(roomId).emit('game_state_update', room.getGameState());
-        
+
         // Kurban yoksa işlemi bitir
         if (victims.length === 0) {
-           io.to(roomId).emit('system_alert', { message: "Vergi Memuru yerleşti ama ceza kesecek kimse yok." });
-           // Tur fazını düzeltmek için backend'de küçük bir method gerekebilir ama şimdilik client yönetir
+          io.to(roomId).emit('system_alert', { message: "Vergi Memuru yerleşti ama ceza kesecek kimse yok." });
+          // Tur fazını düzeltmek için backend'de küçük bir method gerekebilir ama şimdilik client yönetir
         } else {
-           // Odaya değil, SADECE zarı atan kişiye kurban listesini gönder
-           socket.emit('robber_victims', { victims }); 
+          // Odaya değil, SADECE zarı atan kişiye kurban listesini gönder
+          socket.emit('robber_victims', { victims });
         }
       }
     } catch (e: any) {
@@ -113,17 +113,17 @@ io.on('connection', (socket) => {
       const room = rooms.get(roomId);
       if (room) {
         const result = room.robPlayer(socket.id, data.victimId);
-        
+
         io.to(roomId).emit('game_state_update', room.getGameState());
 
         // ÖZEL BİLDİRİMLER
         // 1. Hırsıza ne çaldığını söyle
         socket.emit('system_alert', { message: `Başarılı! ${result.victimName}'den ${result.stolenMessage} el koydun.` });
-        
+
         // 2. Kurbana neyinin gittiğini söyle (Private Message)
         // Bunu yapmak için kurbanın socket id'sini bulmamız lazım ama şimdilik basitçe broadcast yapalım ya da:
         // io.to(victimSocketId).emit(...) (Bunun için player map lazım, şimdilik genel log atalım)
-        
+
         // 3. Herkese olay özeti
         socket.broadcast.to(roomId).emit('system_alert', { message: `${result.thiefName}, Vergi Memuru ile ${result.victimName} oyuncusuna ${result.stolenMessage} ceza kesti!` });
       }
@@ -153,11 +153,11 @@ io.on('connection', (socket) => {
       if (room) {
         const message = room.playDevelopmentCard(socket.id, data.cardType);
         io.to(roomId).emit('game_state_update', room.getGameState());
-        
+
         // İşlem başarılıysa bildirim gönder
         if (message) {
-           socket.emit('system_alert', { message }); // Oynayana
-           socket.broadcast.to(roomId).emit('system_alert', { message: "Bir oyuncu Gelişim Kartı oynadı!" });
+          socket.emit('system_alert', { message }); // Oynayana
+          socket.broadcast.to(roomId).emit('system_alert', { message: "Bir oyuncu Gelişim Kartı oynadı!" });
         }
       }
     } catch (e: any) {
@@ -174,6 +174,22 @@ io.on('connection', (socket) => {
         room.sabotageRoad(socket.id, coords);
         io.to(roomId).emit('game_state_update', room.getGameState());
         io.to(roomId).emit('system_alert', { message: "BİR YOL SABOTE EDİLDİ! 🚧🔥" });
+      }
+    } catch (e: any) {
+      socket.emit('error_message', { message: e.message });
+    }
+  });
+
+  // ENKAZ TAMİR
+  socket.on('repair_debris', (coords: { q: number, r: number, edgeIndex: number }) => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        room.repairDebris(socket.id, coords);
+        io.to(roomId).emit('game_state_update', room.getGameState());
+        io.to(roomId).emit('system_alert', { message: "Enkaz temizlendi ve yol yeniden inşa edildi! 🔧" });
       }
     } catch (e: any) {
       socket.emit('error_message', { message: e.message });
@@ -240,9 +256,9 @@ io.on('connection', (socket) => {
   socket.on('create_p2p_offer', (data) => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
-      if (room) { 
-        room.createP2PTrade(socket.id, data.give, data.want); 
-        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState()); 
+      if (room) {
+        room.createP2PTrade(socket.id, data.give, data.want);
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
@@ -250,9 +266,9 @@ io.on('connection', (socket) => {
   socket.on('accept_p2p_offer', () => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
-      if (room) { 
-        room.acceptP2PTrade(socket.id); 
-        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState()); 
+      if (room) {
+        room.acceptP2PTrade(socket.id);
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
@@ -260,8 +276,8 @@ io.on('connection', (socket) => {
   socket.on('finalize_p2p_offer', (data) => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
-      if (room) { 
-        room.finalizeP2PTrade(socket.id, data.partnerId); 
+      if (room) {
+        room.finalizeP2PTrade(socket.id, data.partnerId);
         io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
         socket.emit('system_alert', { message: "Ticaret tamamlandı! 🤝" });
       }
@@ -271,9 +287,9 @@ io.on('connection', (socket) => {
   socket.on('cancel_p2p_offer', () => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
-      if (room) { 
-        room.cancelP2PTrade(socket.id); 
-        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState()); 
+      if (room) {
+        room.cancelP2PTrade(socket.id);
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });

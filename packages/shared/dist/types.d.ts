@@ -63,6 +63,7 @@ export interface Building {
     type: BuildingType;
     ownerId: string;
     coord: Coord;
+    originalOwnerId?: string;
 }
 export interface GameState {
     id: string;
@@ -75,6 +76,10 @@ export interface GameState {
     turnSubPhase: 'settlement' | 'road' | 'waiting';
     setupTurnIndex: number;
     currentTradeOffer: TradeOffer | null;
+    winnerId: string | null;
+    longestRoadPlayerId: string | null;
+    largestArmyPlayerId: string | null;
+    activeCartelPlayerId: string | null;
 }
 export interface RoomInfo {
     id: string;

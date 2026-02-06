@@ -44,7 +44,7 @@ interface ResourcePanelProps {
 
 export function ResourcePanel({ resources, devCards, onPlayCard, isMyTurn }: ResourcePanelProps) {
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-50 items-end">
+    <div className="fixed bottom-1 left-1/2 -translate-x-1/2 flex gap-4 z-50 items-end">
       
       {/* KAYNAKLAR */}
       <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-2xl shadow-2xl flex gap-4 h-24 items-center">

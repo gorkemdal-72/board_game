@@ -70,6 +70,7 @@ export interface Building {
   type: BuildingType;
   ownerId: string;
   coord: Coord;
+  originalOwnerId?: string; // Enkaz için orijinal sahip (tamir maliyeti hesabı)
 }
 
 export interface GameState {
@@ -83,6 +84,12 @@ export interface GameState {
   turnSubPhase: 'settlement' | 'road' | 'waiting';
   setupTurnIndex: number;
   currentTradeOffer: TradeOffer | null;
+  
+  // MERCATOR: Yeni Alanlar
+  winnerId: string | null;              // Kazanan oyuncu
+  longestRoadPlayerId: string | null;   // En Uzun Yol sahibi (+2 VP)
+  largestArmyPlayerId: string | null;   // En Güçlü Ordu sahibi (+2 VP)
+  activeCartelPlayerId: string | null;  // Kartel aktif mi? Kimde?
 }
 
 export interface RoomInfo {
