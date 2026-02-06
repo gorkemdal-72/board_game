@@ -1,0 +1,5 @@
+{
+  "installCommand": "cd ../.. && npm install --legacy-peer-deps && npm run build -w @cumor/shared",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist"
+}
