@@ -1,5 +1,5 @@
 // packages/server/src/game/LobbyManager.ts
-import { RoomManager } from './RoomManager';
+import { RoomManager } from './RoomManager.js';
 import { RoomInfo } from '@cumor/shared';
 import { v4 as uuidv4 } from 'uuid'; // ID üretmek için (npm install uuid lazım olabilir, yoksa Math.random kullan)
 

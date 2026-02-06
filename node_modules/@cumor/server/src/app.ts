@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { RoomManager } from './game/RoomManager';
+import { RoomManager } from './game/RoomManager.js';
 import { PlayerColor } from '@cumor/shared';
 
 const app = express();
