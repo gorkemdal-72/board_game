@@ -1,84 +1,89 @@
-# 🏰 CUMOR - Oyun Kuralları ve Rehberi
+# 🏰 CUMOR - Detaylı Oyun Kılavuzu
 
-**CUMOR**, kaynak yönetimi, ticaret ve stratejik inşaat üzerine kurulu rekabetçi bir strateji oyunudur.
-
-## 🎯 Oyunun Amacı
-10 **Zafer Puanına (VP)** ulaşan ilk oyuncu oyunu kazanır.
-
-### Puan Kazanma Yolları
-| Eylem | Puan | Not |
-| :--- | :---: | :--- |
-| **Köy** | +1 VP | Her biri için |
-| **Şehir** | +2 VP | Her biri için |
-| **En Uzun Yol** | +2 VP | En az 5 kesintisiz yol |
-| **En Güçlü Ordu** | +2 VP | En az 3 Paralı Asker kartı |
-| **Ekonomik Lider** | +1 VP | Kasasında 15+ Altın biriktiren |
-| **Zafer Kartı** | +1 VP | Gelişim kartlarından çıkar |
+**CUMOR**, kaynak yönetimi ve stratejik genişleme oyunudur. Bu rehberde, oyuna nasıl başlanacağından zarların anlamına kadar her detayı bulabilirsiniz.
 
 ---
 
-## 🛠️ Kaynaklar ve İnşaat
-**Kaynaklar:** 🌲 **Kereste**, 🧱 **Beton**, 🧶 **Kumaş**, 🌾 **Gıda**, 💎 **Elmas**
+## 🏁 1. Oyun Kurulumu (Başlangıç)
+Oyun başladığında **Kurulum Aşaması (Setup Phase)** devreye girer. Bu aşamada her oyuncu sırayla **bir köy ve bir yol** yerleştirir.
 
-### İnşaat Maliyetleri
-| Yapı | Maliyet | Sınır |
-| :--- | :--- | :--- |
-| **Yol** | 1 🧱 Beton + 1 🌲 Kereste | Max 15 |
-| **Köy** | 1 🧱 Beton + 1 🌲 Kereste + 1 🧶 Kumaş + 1 🌾 Gıda | Max 5 |
-| **Şehir** | 2 🌾 Gıda + 3 💎 Elmas | Max 4 |
-| **Gelişim Kartı** | 1 💎 Elmas + 1 🧶 Kumaş + 1 🌾 Gıda | Sınırsız |
+### Snake Draft Sistemi
+Sıralama "ileri-geri" şeklinde ilerler:
+1.  **Oyuncu 1:** İlk köyünü ve yolunu kurar.
+2.  **Oyuncu 2:** İlk köyünü ve yolunu kurar.
+3.  **Oyuncu 3:** İlk köyünü ve yolunu kurar.
+4.  **Oyuncu 4:** İlk köyünü ve yolunu kurar.
+5.  **Oyuncu 4 (Tekrar):** İkinci köyünü ve yolunu kurar.
+6.  **Oyuncu 3:** İkinci köyünü ve yolunu kurar.
+    ...ve böyle devam eder.
 
-> **Not:** Bir yapı inşa etmek için mevcut yapılarınıza (yol veya bina) bağlantısı olması gerekir. Köyler/Şehirler birbirine en az 2 yol mesafesinde olmalıdır.
-
----
-
-## 💰 Ticaret Sistemi
-### 1. Banka (Satış)
-Elinizdeki fazla kaynakları satarak **Altın** kazanabilirsiniz.
-- **3x 🌾 Gıda / 🌲 Kereste** ➝ 1 Altın
-- **2x 🧱 Beton / 🧶 Kumaş** ➝ 1 Altın
-- **1x 💎 Elmas** ➝ 1 Altın
-
-### 2. Karaborsa (Alış)
-Altın karşılığında istediğiniz kaynağı alabilirsiniz. Fiyatlar **gelişmişlik düzeyinize** göre değişir:
-- **5 Altın:** Hiç yapınız yoksa
-- **4 Altın:** En az 1 Yolunuz varsa
-- **3 Altın:** En az 1 Köyünüz varsa
-- **2 Altın:** En az 1 Şehriniz varsa
+**ÖNEMLİ:** İkinci köyünüzü kurduğunuzda, o köyün çevresindeki arazilerden **başlangıç kaynaklarınızı** hemen alırsınız. Bu yüzden ikinci köyünüzü kaynak çeşitliliği bol olan bir yere kurmak stratejiktir!
 
 ---
 
-## 🃏 Gelişim Kartları
-1.  **⚔️ Paralı Asker:** Hırsızı (Vergi Memuru) hareket ettirir. En çok oynayan "En Güçlü Ordu" puanını alır.
-2.  **🏆 Zafer Puanı:** Gizli +1 VP kazandırır.
-3.  **💣 Sabotaj:** Rakibinizin bir yolunu patlatarak **Enkaza (Debris)** çevirir!
-4.  **🏴‍☠️ Kartel:** Oynandığında, sıra tekrar size gelene kadar **tüm oyuncuların ürettiği kaynaklar** size akar.
-5.  **🛡️ Sigorta:** Sabotaj yapıldığında otomatik devreye girer ve sabotajı engeller.
+## 🔄 2. Oyun Akışı (Tur Sırası)
+Kurulum bittikten sonra oyun başlar. Her tur şu sırayla oynanır:
+
+### 🎲 A. Zar Atma
+Sıra size geldiğinde zarları atarsınız. İki zarın toplamı (2-12 arası) belirlenir.
+*   **Üretim:** Haritada üzerinde bu sayı yazan araziler üretim yapar. O arazinin köşesinde köyü/şehri olan herkes kaynak kazanır.
+*   **7 Gelirse (Hırsız):** Üretim olmaz! Hırsız (Vergi Memuru) devreye girer (Detaylar aşağıda).
+
+### 🛠️ B. Eylem Aşaması
+Zarlar atıldıktan sonra istediğiniz kadar işlem yapabilirsiniz (sıra fark etmeksizin):
+*   **Ticaret:** Banka veya diğer oyuncularla kaynak takası.
+*   **İnşaat:** Kaynak harcayarak Yol, Köy veya Şehir kurma.
+*   **Gelişim Kartı:** Satın alma veya oynama.
 
 ---
 
-## 🔥 Özel Mekanikler
+## 🏠 3. Yapılar ve Farkları
 
-### 🚧 Enkaz ve Tamir
-Bir yol sabotaja uğradığında **Enkaz (Debris)** olur.
-- **Eski Sahip Tamir Ederse:** Sadece **1 🌲 Kereste**.
-- **Başkası İşgal Ederse:** **1 🌲 + 1 🧱 + 2 Altın**.
+### 🛖 Köy (Settlement)
+*   **Maliyet:** 1 🧱 Beton + 1 🌲 Kereste + 1 🧶 Kumaş + 1 🌾 Gıda
+*   **Puan:** +1 Zafer Puanı
+*   **Üretim:** Bağlı olduğu araziden sayı geldiğinde **1 Kaynak** verir.
 
-### 🕵️‍♂️ Hırsız (Vergi Memuru)
-Zarlarda **7** gelirse:
-- Elinde **7'den fazla kaynak** olanlar yarısını kaybeder.
-- Kasasında **20'den fazla Altın** olanlar yarısını kaybeder.
-- Hırsızın konduğu arazide üretim durur.
-
-### 🎲 Zar ve Üretim
-- Köy: 1 Kaynak. Şehir: 2 Kaynak.
-- **Yol Vergisi:** Üretim olan arazide binanız yok ama **Yolunuz** varsa:
-    *   1 Yol: **+1 Altın**
-    *   2+ Yol: **+2 Altın**
+### 🏙️ Şehir (City)
+*   **Nasıl Yapılır:** Mevcut bir köyünüzü yükselterek.
+*   **Maliyet:** 2 🌾 Gıda + 3 💎 Elmas
+*   **Puan:** +2 Zafer Puanı
+*   **Üretim:** Bağlı olduğu araziden sayı geldiğinde **2 Kaynak** verir.
+*   **Karaborsa Avantajı:** Şehriniz varsa karaborsada daha ucuza (2 Altın) kaynak alabilirsiniz.
 
 ---
 
-## 🚀 Başlangıç Taktikleri
-1.  **Dengeli Yerleşim:** Kereste ve Beton yol yapmak için kritiktir.
-2.  **Altın:** Kötü arazilerde bile Altın biriktirip Karaborsayı kullanabilirsiniz.
-3.  **Gelişim:** Karteller oyunun kaderini değiştirebilir!
+## 🎲 4. Zarların Anlamı ve İstatistik
+Her zar kombinasyonunun gelme ihtimali farklıdır:
+*   **🔴 En Sık Gelenler (6 ve 8):** Bu sayıların olduğu araziler çok değerlidir (Kırmızı ile gösterilir). Buralara köy kurmak sürekli kaynak akışı sağlar.
+*   **⚫ Orta Seviye (5 ve 9):** Fena değildir, düzenli gelir sağlar.
+*   **⚪ Nadir (2 ve 12):** Çok nadir gelir (36 atışta 1 ihtimal). Sadece buraya güvenmeyin!
+
+---
+
+## 🕵️‍♂️ 5. Hırsız (Vergi Memuru) ve 7 Sayısı
+İki zarın en sık gelen toplamı **7**'dir. 7 geldiğinde:
+1.  **Stok Kontrolü:** Elinde **7'den fazla** kaynak kartı olan herkes, elinin yarısını bankaya geri verir! (Altın hariç).
+2.  **Hırsız Hareket Eder:** Zarı atan oyuncu Hırsızı bir araziye koyar.
+    *   **Bloke:** Hırsızın olduğu arazi, sayı gelse bile **ÜRETİM YAPMAZ**.
+    *   **Çalma:** Hırsızı koyduğunuz arazide binası olan bir oyuncudan rastgele 1 kaynak çalarsınız.
+
+---
+
+## 🏆 6. Nasıl Kazanılır?
+Toplam **10 Zafer Puanına (VP)** ulaşan kazanır.
+
+*   Köy: **1 VP**
+*   Şehir: **2 VP**
+*   En Uzun Yol Kartı: **2 VP** (En az 5 birimlik kesintisiz yolunuz varsa ve herkesten uzunsa).
+*   En Güçlü Ordu Kartı: **2 VP** (En az 3 Paralı Asker kartı oynadıysanız ve herkesten çoksa).
+*   Ekonomik Lider: **1 VP** (Kasanızda 15 Altın biriktirirseniz).
+*   Zafer Puanı Kartı: **+1 VP** (Gelişim destesinden çıkar).
+
+---
+
+## 🔥 İpuçları
+*   **İlk yerleşim çok önemlidir.** 6 ve 8 sayılarına yakın olmaya çalışın.
+*   **Kereste ve Beton** olmadan yol yapamazsınız, genişleyemezsiniz.
+*   **Gelişim Kartları** sürpriz saldırılar yapmanızı sağlar (özellikle Kartel ve Sabotaj).
+*   **Yolunuz kesilmesin!** Rakipler araya yol/köy kurarak sizin "En Uzun Yol"unuzu bölebilir.
