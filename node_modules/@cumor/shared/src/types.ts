@@ -42,7 +42,8 @@ export interface Player {
   victoryPoints: number;
   longestRoad: number;
   armySize: number;
-  devCards: DevCardType[];
+  devCards: Record<DevCardType, number>;
+  newDevCards: Record<DevCardType, number>; // Yeni alınanlar (bu tur kullanılamaz)
 }
 
 export enum PlayerColor {

@@ -8,6 +8,7 @@ import { ResourcePanel } from './components/ResourcePanel';
 import { ActionPanel } from './components/ActionPanel';
 import { TradePanel } from './components/TradePanel';
 import { BuildCostPanel } from './components/BuildCostPanel';
+import { ChatPanel } from './components/ChatPanel'; // İMPORT EKLENDİ
 
 let socket: Socket;
 
@@ -33,6 +34,8 @@ function App() {
   const [largestArmyPlayerId, setLargestArmyPlayerId] = useState<string | null>(null);
   const [activeCartelPlayerId, setActiveCartelPlayerId] = useState<string | null>(null);
   const [startRolls, setStartRolls] = useState<{ playerId: string, roll: number | null }[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false); // CHAT STATE
+  const [highlightNumber, setHighlightNumber] = useState<number | null>(null); // ZAR SONUCU (Tile Highlight İçin)
 
   useEffect(() => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
@@ -64,6 +67,10 @@ function App() {
     });
     socket.on('dice_result', (data: { die1: number, die2: number, total: number }) => {
       setHasRolled(true);
+      // GÖRSEL EFEKT: İlgili numaralı arazileri parlat
+      setHighlightNumber(data.total);
+      setTimeout(() => setHighlightNumber(null), 3000); // 3 sn sonra sön
+
       toast.info(`🎲 Zar: ${data.total} (${data.die1}+${data.die2})`, { autoClose: 3000, theme: "dark" });
     });
 
@@ -216,6 +223,7 @@ function App() {
                 onVertexClick={handleVertexClick}
                 onEdgeClick={handleEdgeClick}
                 onTileClick={handleTileClick}
+                highlightNumber={highlightNumber} // YENİ PROP
               />
             </div>
 
@@ -400,6 +408,7 @@ function App() {
                 myId={myId || ''}
                 players={players}
                 buildings={buildings}
+                tiles={tiles} // YENİ: Konum bazlı karaborsa için
                 // YENİ PROPS
                 onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
                 canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 15}
@@ -437,6 +446,17 @@ function App() {
                 </div>
               </div>
             )}
+
+
+
+            {/* CHAT PANELİ */}
+            <ChatPanel
+              socket={socket}
+              myId={myId || ''}
+              players={players}
+              isOpen={isChatOpen}
+              onToggle={() => setIsChatOpen(!isChatOpen)}
+            />
 
           </>
         )}

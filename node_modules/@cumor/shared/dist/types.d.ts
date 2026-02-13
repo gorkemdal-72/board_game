@@ -36,7 +36,8 @@ export interface Player {
     victoryPoints: number;
     longestRoad: number;
     armySize: number;
-    devCards: DevCardType[];
+    devCards: Record<DevCardType, number>;
+    newDevCards: Record<DevCardType, number>;
 }
 export declare enum PlayerColor {
     RED = "red",

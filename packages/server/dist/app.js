@@ -28,8 +28,10 @@ io.on('connection', (socket) => {
     console.log(`🔌 Yeni bağlantı: ${socket.id}`);
     socket.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
     socket.on('create_room', (data) => {
+        console.log('Received create_room:', data);
         try {
             const roomId = Math.random().toString(36).substr(2, 9);
+            console.log('Creating room id:', roomId);
             const newRoom = new RoomManager(roomId, data.roomName, data.password);
             newRoom.addPlayer(socket.id, data.playerName, data.playerColor);
             rooms.set(roomId, newRoom);
@@ -38,8 +40,10 @@ io.on('connection', (socket) => {
             socket.emit('join_success');
             io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
             io.to(roomId).emit('game_state_update', newRoom.getGameState());
+            console.log('Room created successfully');
         }
         catch (e) {
+            console.error('Error creating room:', e);
             socket.emit('error_message', { message: e.message });
         }
     });
@@ -366,6 +370,31 @@ io.on('connection', (socket) => {
                 io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
                 io.to(room.getRoomInfo().id).emit('system_alert', { message });
                 io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+            }
+        }
+        catch (e) {
+            socket.emit('error_message', { message: e.message });
+        }
+    });
+    socket.on('chat_message', (message) => {
+        try {
+            const roomId = playerRoomMap.get(socket.id);
+            if (!roomId)
+                return;
+            const room = rooms.get(roomId);
+            if (room) {
+                const player = room.getGameState().players.find(p => p.id === socket.id);
+                if (player) {
+                    const chatMsg = {
+                        id: Math.random().toString(36).substr(2, 9),
+                        playerId: player.id,
+                        playerName: player.name,
+                        playerColor: player.color, // shared/src/types.ts export'u kullanılıyor
+                        message: message.trim(),
+                        timestamp: Date.now()
+                    };
+                    io.to(roomId).emit('chat_message', chatMsg);
+                }
             }
         }
         catch (e) {

@@ -61,7 +61,8 @@ export class RoomManager {
             longestRoadPlayerId: null,
             largestArmyPlayerId: null,
             activeCartelPlayerId: null,
-            startRolls: []
+            startRolls: [],
+            hasRolled: false
         };
         this.initializeDeck(); // Desteyi karıştır
     }
@@ -97,6 +98,13 @@ export class RoomManager {
                 [DevCardType.INSURANCE]: 0,
                 [DevCardType.VICTORY_POINT]: 0
             },
+            newDevCards: {
+                [DevCardType.MERCENARY]: 0,
+                [DevCardType.SABOTAGE]: 0,
+                [DevCardType.CARTEL]: 0,
+                [DevCardType.INSURANCE]: 0,
+                [DevCardType.VICTORY_POINT]: 0
+            },
             victoryPoints: 0, longestRoad: 0, armySize: 0
         });
         if (!this.room.hostId)
@@ -104,6 +112,10 @@ export class RoomManager {
     }
     // --- TİCARET SİSTEMİ ---
     tradeWithBank(playerId, sellResource) {
+        if (this.room.activePlayerId !== playerId)
+            throw new Error("Sıra sende değil!");
+        if (!this.room.hasRolled)
+            throw new Error("Önce zar atmalısınız!");
         const player = this.room.players.find(p => p.id === playerId);
         if (!player)
             throw new Error("Oyuncu yok");
@@ -117,6 +129,8 @@ export class RoomManager {
     buyFromBlackMarket(playerId, resource) {
         if (this.room.activePlayerId !== playerId)
             throw new Error("Sıra sende değil!");
+        if (!this.room.hasRolled)
+            throw new Error("Önce zar atmalısınız!");
         if (this.room.turnSubPhase !== 'waiting') {
             throw new Error("Şu an ticaret yapamazsın.");
         }
@@ -164,20 +178,24 @@ export class RoomManager {
             throw new Error("Sıra sende değil!");
         if (this.devCardDeck.length === 0)
             throw new Error("Deste tükendi!");
-        // Maliyet Kontrolü ve Ödeme
-        this.chargePlayer(playerId, CARD_COST);
+        // Maliyet Kontrolü (Ama henüz düşme!)
+        const player = this.room.players.find(p => p.id === playerId);
+        if (!player)
+            throw new Error("Oyuncu bulunamadı");
+        // Kaynak kontrolü
+        for (const [res, cost] of Object.entries(CARD_COST)) {
+            if ((player.resources[res] || 0) < cost) {
+                throw new Error("Yetersiz kaynak!");
+            }
+        }
         // Kart Çekme
         const card = this.devCardDeck.pop();
         if (!card)
             throw new Error("Kart çekilemedi.");
-        // Oyuncuya Ekleme
-        const player = this.room.players.find(p => p.id === playerId);
-        if (player) {
-            // TypeScript için cast gerekebilir veya Player tipini shared'da güncellemelisin
-            player.devCards[card]++;
-            // Zafer Puanı ise hemen işle (Gizli kalabilir ama puanı artmalı mı? Genelde gizli tutulur)
-            // Şimdilik sadece ele ekliyoruz.
-        }
+        // Ödeme Yap
+        this.chargePlayer(playerId, CARD_COST);
+        // Yeni Kartlara Ekle (Bu tur kullanılamaz)
+        player.newDevCards[card]++;
     }
     // --- KART OYNAMA ---
     playDevelopmentCard(playerId, cardType) {
@@ -201,8 +219,10 @@ export class RoomManager {
                 this.room.turnSubPhase = 'robber';
                 return `Paralı Asker oynandı! Ordu: ${player.armySize} ⚔️ Vergi Memurunu taşı.`;
             case DevCardType.VICTORY_POINT: // Zafer Puanı [cite: 93-94]
-                player.victoryPoints++;
-                return "Zafer Puanı kartı oynandı! +1 Puan.";
+                // VP otomatik hesaplanır, burda bir şey yapmaya gerek yok
+                // Ama kartı "açık" hale getirmek isteniyorsa playedDevCards gibi bir yere atılabilir.
+                // Şimdilik sadece mesaj dönelim. (Puan hesaplama fonksiyonu kartları sayıyor zaten)
+                return "Zafer Puanı kartı açıldı! 🏆";
             case DevCardType.SABOTAGE: // Sabotaj [cite: 81-82]
                 this.room.turnSubPhase = 'sabotage';
                 return "Sabotaj kartı oynandı! Yıkılacak yolu seç. 💣";
@@ -289,6 +309,8 @@ export class RoomManager {
     createP2PTrade(playerId, give, want) {
         if (this.room.activePlayerId !== playerId)
             throw new Error("Sıra sende değil!");
+        if (!this.room.hasRolled)
+            throw new Error("Önce zar atmalısınız!");
         const player = this.room.players.find(p => p.id === playerId);
         if (!player)
             throw new Error("Oyuncu yok");
@@ -350,7 +372,6 @@ export class RoomManager {
         const cityCount = this.room.buildings.filter(b => b.ownerId === playerId && b.type === BuildingType.CITY).length;
         if (cityCount >= 4)
             throw new Error("Maksimum şehir sayısına ulaştın! (4/4)");
-        this.chargePlayer(playerId, BUILDING_COSTS[BuildingType.CITY]);
         const buildingIndex = this.room.buildings.findIndex(b => b.coord.q === coords.q && b.coord.r === coords.r && b.coord.vertexIndex === coords.vertexIndex);
         if (buildingIndex === -1)
             throw new Error("Burada bir bina yok!");
@@ -358,6 +379,8 @@ export class RoomManager {
             throw new Error("Bu bina senin değil!");
         if (this.room.buildings[buildingIndex].type !== BuildingType.SETTLEMENT)
             throw new Error("Sadece köyler şehre dönüşebilir!");
+        // ÖDEME ve İŞLEM (Hata yoksa)
+        this.chargePlayer(playerId, BUILDING_COSTS[BuildingType.CITY]);
         this.room.buildings[buildingIndex] = { ...this.room.buildings[buildingIndex], type: BuildingType.CITY };
         this.room.turnSubPhase = 'waiting';
     }
@@ -367,21 +390,7 @@ export class RoomManager {
         const isSetup = this.room.status.startsWith('setup');
         // KÖY LİMİTİ: Maksimum 5 köy (şehre dönüşenler köy değil)
         if (!isSetup) {
-            const settlementCount = this.room.buildings.filter(b => b.ownerId === playerId && b.type === BuildingType.SETTLEMENT).length;
-            if (settlementCount >= 5)
-                throw new Error("Maksimum köy sayısına ulaştın! (5/5) Şehir yap veya bekle.");
-        }
-        if (!isSetup)
-            this.chargePlayer(playerId, BUILDING_COSTS[BuildingType.SETTLEMENT]);
-        const targetPos = this.getVertexPixelPos(coords.q, coords.r, coords.vertexIndex);
-        const isOccupied = this.room.buildings.some(b => b.type !== BuildingType.ROAD && this.getDistance(targetPos, this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex)) < 5);
-        if (isOccupied)
-            throw new Error("Bu köşe dolu!");
-        // MESAFE KURALI: 2 yol mesafesi (yaklaşık 1 altıgen kenarı)
-        const isTooClose = this.room.buildings.some(b => b.type !== BuildingType.ROAD && this.getDistance(targetPos, this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex)) < (HEX_SIZE + 5));
-        if (isTooClose)
-            throw new Error("Çok yakın! Yapılar arası en az 2 yol mesafesi olmalı.");
-        if (!isSetup) {
+            const targetPos = this.getVertexPixelPos(coords.q, coords.r, coords.vertexIndex);
             const hasRoadConnection = this.room.buildings.some(b => {
                 if (b.ownerId !== playerId || b.type !== BuildingType.ROAD)
                     return false;
@@ -391,6 +400,9 @@ export class RoomManager {
             if (!hasRoadConnection)
                 throw new Error("Kendi yolunla bağlantı yok!");
         }
+        // ÖDEME (Hata yoksa)
+        if (!isSetup)
+            this.chargePlayer(playerId, BUILDING_COSTS[BuildingType.SETTLEMENT]);
         this.room.buildings.push({ id: Math.random().toString(), type: BuildingType.SETTLEMENT, ownerId: playerId, coord: coords });
         if (isSetup && this.room.setupTurnIndex >= this.room.players.length)
             this.giveInitialResources(playerId, coords);
@@ -407,35 +419,27 @@ export class RoomManager {
             if (roadCount >= 15)
                 throw new Error("Maksimum yol sayısına ulaştın! (15/15)");
         }
-        if (!isSetup)
-            this.chargePlayer(playerId, BUILDING_COSTS[BuildingType.ROAD]);
-        const targetEndpoints = this.getRoadEndpoints(coords.q, coords.r, coords.edgeIndex);
-        const midPoint = { x: (targetEndpoints.start.x + targetEndpoints.end.x) / 2, y: (targetEndpoints.start.y + targetEndpoints.end.y) / 2 };
-        // Aynı yerde yol var mı kontrolü
-        const isOccupied = this.room.buildings.some(b => {
-            if (b.type !== BuildingType.ROAD && b.type !== BuildingType.DEBRIS)
-                return false;
-            const bEndpoints = this.getRoadEndpoints(b.coord.q, b.coord.r, b.coord.edgeIndex);
-            const bMid = { x: (bEndpoints.start.x + bEndpoints.end.x) / 2, y: (bEndpoints.start.y + bEndpoints.end.y) / 2 };
-            return this.getDistance(midPoint, bMid) < 5;
-        });
-        if (isOccupied)
-            throw new Error("Bu kenar dolu! (Yol veya enkaz var)");
+        // BAĞLANTI KONTROLÜ
+        const { start, end } = this.getRoadEndpoints(coords.q, coords.r, coords.edgeIndex);
         const isConnected = this.room.buildings.some(b => {
             if (b.ownerId !== playerId)
                 return false;
             if (b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY) {
                 const bPos = this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex);
-                return this.getDistance(bPos, targetEndpoints.start) < 5 || this.getDistance(bPos, targetEndpoints.end) < 5;
+                return this.getDistance(bPos, start) < 5 || this.getDistance(bPos, end) < 5;
             }
-            if (b.type === BuildingType.ROAD) {
-                const bEndpoints = this.getRoadEndpoints(b.coord.q, b.coord.r, b.coord.edgeIndex);
-                return (this.getDistance(bEndpoints.start, targetEndpoints.start) < 5 || this.getDistance(bEndpoints.start, targetEndpoints.end) < 5 || this.getDistance(bEndpoints.end, targetEndpoints.start) < 5 || this.getDistance(bEndpoints.end, targetEndpoints.end) < 5);
+            else if (b.type === BuildingType.ROAD) {
+                const { start: s2, end: e2 } = this.getRoadEndpoints(b.coord.q, b.coord.r, b.coord.edgeIndex);
+                return this.getDistance(start, s2) < 5 || this.getDistance(start, e2) < 5 ||
+                    this.getDistance(end, s2) < 5 || this.getDistance(end, e2) < 5;
             }
             return false;
         });
         if (!isConnected)
             throw new Error("Kendi yapılarınla bağlantı yok!");
+        // ÖDEME (Hata yoksa)
+        if (!isSetup)
+            this.chargePlayer(playerId, BUILDING_COSTS[BuildingType.ROAD]);
         this.room.buildings.push({ id: Math.random().toString(), type: BuildingType.ROAD, ownerId: playerId, coord: { ...coords, vertexIndex: -1 } });
         if (isSetup)
             this.advanceSetupTurn();
@@ -444,6 +448,9 @@ export class RoomManager {
     rollDice(playerId) {
         if (this.room.activePlayerId !== playerId)
             throw new Error("Sıra sende değil!");
+        if (this.room.hasRolled)
+            throw new Error("Zaten zar attın!");
+        this.room.hasRolled = true;
         const d1 = Math.floor(Math.random() * 6) + 1;
         const d2 = Math.floor(Math.random() * 6) + 1;
         const total = d1 + d2;
@@ -604,8 +611,20 @@ export class RoomManager {
         if (this.room.activeCartelPlayerId && this.room.activeCartelPlayerId === nextPlayerId) {
             this.room.activeCartelPlayerId = null;
         }
+        // YENİ KARTLARI AKTİF HALE GETİR
+        const player = this.room.players.find(p => p.id === playerId);
+        if (player) {
+            for (const cardType in player.newDevCards) {
+                const type = cardType;
+                if (player.newDevCards[type] > 0) {
+                    player.devCards[type] += player.newDevCards[type];
+                    player.newDevCards[type] = 0;
+                }
+            }
+        }
         this.room.activePlayerId = nextPlayerId;
         this.room.turnSubPhase = 'waiting';
+        this.room.hasRolled = false;
         // --- KAZANMA KONTROLÜ ---
         this.updateAllVictoryPoints();
         const winner = this.checkWinCondition();
@@ -645,8 +664,8 @@ export class RoomManager {
         if (this.room.largestArmyPlayerId === playerId) {
             vp += 2;
         }
-        // 5. Zafer Puanı Kartları
-        const vpCards = player.devCards?.[DevCardType.VICTORY_POINT] || 0;
+        // 5. Zafer Puanı Kartları (Hem eldekiler hem yeniler)
+        const vpCards = (player.devCards[DevCardType.VICTORY_POINT] || 0) + (player.newDevCards[DevCardType.VICTORY_POINT] || 0);
         vp += vpCards;
         // 6. Ekonomik Lider: 15+ Altın = +1 VP
         if (player.resources[ResourceType.GOLD] >= 15) {

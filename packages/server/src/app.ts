@@ -340,6 +340,27 @@ io.on('connection', (socket) => {
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
+
+  // CHAT SİSTEMİ
+  socket.on('send_chat_message', (data: { text: string }) => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        const player = room.getGameState().players.find(p => p.id === socket.id);
+        if (player) {
+          io.to(roomId).emit('chat_message', {
+            senderId: player.id,
+            senderName: player.name,
+            text: data.text,
+            color: player.color, // Mesaj rengi oyuncu rengi olsun
+            timestamp: Date.now()
+          });
+        }
+      }
+    } catch (e) { console.error("Chat error", e); }
+  });
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;

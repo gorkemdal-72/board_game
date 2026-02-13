@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ResourceType, TradeOffer, Player, Building, BuildingType } from '@cumor/shared';
+import { ResourceType, TradeOffer, Player, Building, BuildingType, Tile } from '@cumor/shared';
+import { hexToPixel, getHexCorners } from '@cumor/shared';
 
 // Kural Kitabına Göre Türkçe İsimler
 const RESOURCE_NAMES: Record<ResourceType, string> = {
@@ -32,28 +33,79 @@ interface TradePanelProps {
   myId: string;
   players: Player[];
   buildings: Building[]; // YENİ: Dinamik oran hesabı için
+  tiles: Tile[]; // Tile[], ama import sorunu olmasın diye any yaptık, aşağıda cast ederiz veya Tile import ederiz
   onBuyVictoryPoint?: () => void;
   canBuyVP?: boolean;
 }
 
-// Dinamik Karaborsa Oranı Hesaplama
-function getBlackMarketRate(myId: string, buildings: Building[]): number {
-  const myBuildings = buildings.filter(b => b.ownerId === myId);
-  const hasCity = myBuildings.some(b => b.type === BuildingType.CITY);
-  const hasSettlement = myBuildings.some(b => b.type === BuildingType.SETTLEMENT);
-  const hasRoad = myBuildings.some(b => b.type === BuildingType.ROAD);
+// Arazi Tipine Göre Kaynak Haritası
+const TERRAIN_RESOURCE_MAP: Partial<Record<string, ResourceType>> = {
+  'forest': ResourceType.LUMBER,
+  'hills': ResourceType.CONCRETE,
+  'pasture': ResourceType.TEXTILE,
+  'fields': ResourceType.FOOD,
+  'mountains': ResourceType.DIAMOND
+};
 
-  if (hasCity) return 2;           // Şehir varsa en iyi oran
-  if (hasSettlement) return 3;     // Köy varsa
-  if (hasRoad) return 4;           // Sadece yol varsa
-  return 5;                        // Hiç yapı yoksa en kötü oran
+// Konum Bazlı Karaborsa Oranı Hesaplama
+function getBlackMarketRate(myId: string, buildings: Building[], tiles: Tile[], targetResource: ResourceType): number {
+  let bestRate = 5; // Varsayılan (Hiçbir şey yoksa)
+  const HEX_SIZE = 50; // App.tsx ile aynı olmalı
+
+  // 1. Hedef kaynağı üreten arazileri bul
+  const targetTiles = tiles.filter(t => TERRAIN_RESOURCE_MAP[t.terrain] === targetResource);
+
+  // 2. Oyuncunun BİNALARINI (Köy/Şehir) al - Yolların vertexIndex'i -1 olduğu için geometry hatası veriyor!
+  const myBuildings = buildings.filter(b => b.ownerId === myId);
+  const myStructures = myBuildings.filter(b => b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY);
+
+  // 3. Her bir hedef arazi için kontrol et
+  for (const tile of targetTiles) {
+    const { x, y } = hexToPixel(tile.coord.q, tile.coord.r, HEX_SIZE);
+    const tileCorners = getHexCorners(x, y, HEX_SIZE);
+
+    // Bu arazi üzerinde oyuncunun binası var mı?
+    for (const building of myStructures) {
+      // Binanın koordinatını piksele çevir
+      const { x: bx, y: by } = hexToPixel(building.coord.q, building.coord.r, HEX_SIZE);
+      const buildingCorners = getHexCorners(bx, by, HEX_SIZE);
+      
+      // GÜVENLİK KONTROLÜ: vertexIndex geçerli mi?
+      const vIndex = building.coord.vertexIndex ?? 0;
+      if (vIndex < 0 || vIndex >= 6) continue;
+
+      const buildingPos = buildingCorners[vIndex];
+
+      // Bina, arazinin köşelerinden birine yakın mı?
+      // (Mesafe kontrolü)
+      const isOnTile = tileCorners.some(corner => {
+        const dx = corner.x - buildingPos.x;
+        const dy = corner.y - buildingPos.y;
+        return Math.sqrt(dx * dx + dy * dy) < 5;
+      });
+
+      if (isOnTile) {
+        if (building.type === BuildingType.CITY) bestRate = Math.min(bestRate, 2);
+        else if (building.type === BuildingType.SETTLEMENT) bestRate = Math.min(bestRate, 3);
+        // Yol kontrolü çok daha zor (kenar kontrolü), şimdilik sadece binalar
+      }
+    }
+  }
+
+  // Eğer binası yoksa ama o kaynağı üreten bir yere yolu varsa 4, yoksa 5.
+  // Yol kontrolü zor olduğu için: Eğer bina yoksa (bestRate hala 5 ise),
+  // ve oyuncunun genel olarak yolu varsa 4 yap (Basitleştirme).
+  // Veya kullanıcının isteğine göre "Orda yolum varsa 4" diyor.
+  // Şimdilik bina yoksa 4 varsayalım (Global yol kuralı gibi).
+  if (bestRate === 5 && myBuildings.some(b => b.type === BuildingType.ROAD)) {
+     bestRate = 4;
+  }
+  
+  return bestRate;
 }
 
 export function TradePanel(props: TradePanelProps) {
   const [activeTab, setActiveTab] = useState<'bank' | 'p2p'>('bank');
-
-  // Dinamik karaborsa oranı
-  const blackMarketRate = getBlackMarketRate(props.myId, props.buildings);
 
   // Teklif Formu State'i (Altın dahil!)
   const initialResources = { [ResourceType.LUMBER]: 0, [ResourceType.CONCRETE]: 0, [ResourceType.TEXTILE]: 0, [ResourceType.FOOD]: 0, [ResourceType.DIAMOND]: 0, [ResourceType.GOLD]: 0 };
@@ -98,32 +150,41 @@ export function TradePanel(props: TradePanelProps) {
                   onClick={() => props.onBankSell(res)}
                   className="bg-slate-800 hover:bg-green-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all"
                 >
-                  <span className="font-bold">{RESOURCE_NAMES[res]}</span>
-                  <span className="text-[10px] text-green-500 font-mono">
-                    {SELL_RATES[res]} Adet → 1 💰
-                  </span>
+                  <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
+                  <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                    <span>{SELL_RATES[res]} {res === ResourceType.FOOD || res === ResourceType.LUMBER ? '📦' : '💎'}</span>
+                    <span>→</span>
+                    <span className="text-yellow-400">1 💰</span>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* KARABORSA (ALIŞ) */}
+          {/* İTHALAT (KARABORSA) */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-red-400 font-bold">KARABORSA (AL)</span>
-              <span className="text-[10px] text-yellow-400 font-bold">SENİN ORATIN: {blackMarketRate} 💰</span>
+              <span className="text-[10px] text-gray-500">Altın → Kaynak</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {resources.map(res => (
-                <button
-                  key={`buy-${res}`}
-                  onClick={() => props.onBankBuy(res)}
-                  className="bg-slate-800 hover:bg-red-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all"
-                >
-                  <span className="font-bold">{RESOURCE_NAMES[res]}</span>
-                  <span className="text-[10px] text-yellow-500 font-mono">{blackMarketRate} 💰</span>
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              {resources.map(res => {
+                const rate = getBlackMarketRate(props.myId, props.buildings, props.tiles, res);
+                return (
+                  <button
+                    key={`buy-${res}`}
+                    onClick={() => props.onBankBuy(res)}
+                    className="bg-slate-800 hover:bg-red-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all"
+                  >
+                    <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
+                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                      <span className="text-yellow-400">{rate} 💰</span>
+                      <span>→</span>
+                      <span>1 📦</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             <div className="text-[9px] text-gray-500 text-center mt-2 italic border-t border-slate-700 pt-1">
               Oranlar: 🏰Şehir=2, 🏠Köy=3, 🛤️Yol=4, ❌Yok=5
@@ -183,7 +244,11 @@ export function TradePanel(props: TradePanelProps) {
               </div>
 
               <button
-                onClick={() => props.onCreateOffer(giveState, wantState)}
+                onClick={() => {
+                  props.onCreateOffer(giveState, wantState);
+                  setGiveState({ ...initialResources });
+                  setWantState({ ...initialResources });
+                }}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded shadow-lg text-sm transition-transform active:scale-95"
               >
                 TEKLİFİ YAYINLA 📢

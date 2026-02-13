@@ -21,9 +21,10 @@ interface HexBoardProps {
   onVertexClick?: (q: number, r: number, vertexIndex: number) => void;
   onEdgeClick?: (q: number, r: number, edgeIndex: number) => void;
   onTileClick?: (q: number, r: number) => void;
+  highlightNumber?: number | null; // YENİ
 }
 
-export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, onEdgeClick, onTileClick }: HexBoardProps) {
+export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, onEdgeClick, onTileClick, highlightNumber }: HexBoardProps) {
   const [hoveredVertex, setHoveredVertex] = useState<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
           {/* 1. ARAZİLER */}
           {tiles.map((tile, index) => (
             <g key={`hex-${index}`} onClick={() => onTileClick && onTileClick(tile.coord.q, tile.coord.r)} className="cursor-pointer hover:opacity-90">
-              <HexTile tile={tile} xSize={HEX_SIZE} drawSize={HEX_DRAW_SIZE} />
+              <HexTile tile={tile} xSize={HEX_SIZE} drawSize={HEX_DRAW_SIZE} isHighlighted={!!tile.number && highlightNumber === tile.number} />
             </g>
           ))}
 
@@ -62,7 +63,7 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
 
               return (
                 <g key={edgeKey} transform={`translate(${midX}, ${midY}) rotate(${angle})`}
-                  onClick={() => !hasRoad && onEdgeClick && onEdgeClick(tile.coord.q, tile.coord.r, i)}
+                  onClick={() => onEdgeClick && onEdgeClick(tile.coord.q, tile.coord.r, i)}
                   onMouseEnter={() => setHoveredEdge(edgeId)} onMouseLeave={() => setHoveredEdge(null)} className="cursor-pointer">
                   <rect x={-20} y={-10} width={40} height={20} fill="transparent" />
                   {hoveredEdge === edgeId && !hasRoad && (
@@ -144,7 +145,9 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
               const midY = (c1.y + c2.y) / 2;
               const angle = Math.atan2(c2.y - c1.y, c2.x - c1.x) * (180 / Math.PI);
               return (
-                <g key={b.id} transform={`translate(${midX}, ${midY}) rotate(${angle})`}>
+                <g key={b.id} transform={`translate(${midX}, ${midY}) rotate(${angle})`}
+                  onClick={() => onEdgeClick && onEdgeClick(b.coord.q, b.coord.r, b.coord.edgeIndex!)} // CLICK EKLENDİ
+                  className="cursor-pointer hover:opacity-80">
                   <rect x={-20} y={-2} width={40} height={8} fill="rgba(0,0,0,0.4)" rx={2} filter="blur(1px)" />
                   <rect x={-22} y={-4} width={44} height={8} fill={color} stroke="white" strokeWidth={1.5} rx={2} />
                 </g>
@@ -179,7 +182,7 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
   );
 }
 
-function HexTile({ tile, xSize, drawSize }: { tile: Tile; xSize: number; drawSize: number }) {
+function HexTile({ tile, xSize, drawSize, isHighlighted }: { tile: Tile; xSize: number; drawSize: number; isHighlighted?: boolean }) {
   const { x, y } = hexToPixel(tile.coord.q, tile.coord.r, xSize);
   const corners = getHexCorners(0, 0, drawSize);
   const points = corners.map(c => `${c.x},${c.y}`).join(' ');
@@ -207,8 +210,9 @@ function HexTile({ tile, xSize, drawSize }: { tile: Tile; xSize: number; drawSiz
       <polygon
         points={points}
         fill={style.color}
-        stroke="#1a1a2e"
-        strokeWidth={2}
+        stroke={isHighlighted ? "#ffffff" : "#1a1a2e"}
+        strokeWidth={isHighlighted ? 4 : 2}
+        className={isHighlighted ? "animate-pulse brightness-125" : ""}
       />
 
       {/* Kaynak Adı - ALTTA */}
