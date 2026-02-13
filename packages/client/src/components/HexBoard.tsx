@@ -24,6 +24,41 @@ interface HexBoardProps {
   highlightNumber?: number | null; // YENİ
 }
 
+// Helper: Pixel mesafesi ile bina bul
+function findBuildingAtPixel(buildings: Building[], px: number, py: number): Building | undefined {
+  const HEX = 50;
+  for (const b of buildings) {
+    if (b.type !== 'settlement' && b.type !== 'city') continue;
+    if (b.coord.vertexIndex === undefined || b.coord.vertexIndex < 0) continue;
+    const { x, y } = hexToPixel(b.coord.q, b.coord.r, HEX);
+    const corners = getHexCorners(x, y, HEX);
+    const pos = corners[b.coord.vertexIndex];
+    const dx = pos.x - px;
+    const dy = pos.y - py;
+    if (Math.sqrt(dx * dx + dy * dy) < 5) return b;
+  }
+  return undefined;
+}
+
+// Helper: Pixel mesafesi ile yol bul
+function findRoadAtPixel(buildings: Building[], mx: number, my: number): Building | undefined {
+  const HEX = 50;
+  for (const b of buildings) {
+    if (b.type !== 'road' && b.type !== 'debris') continue;
+    if (b.coord.edgeIndex === undefined || b.coord.edgeIndex < 0) continue;
+    const { x, y } = hexToPixel(b.coord.q, b.coord.r, HEX);
+    const corners = getHexCorners(x, y, HEX);
+    const c1 = corners[b.coord.edgeIndex];
+    const c2 = corners[(b.coord.edgeIndex + 1) % 6];
+    const midX = (c1.x + c2.x) / 2;
+    const midY = (c1.y + c2.y) / 2;
+    const dx = midX - mx;
+    const dy = midY - my;
+    if (Math.sqrt(dx * dx + dy * dy) < 5) return b;
+  }
+  return undefined;
+}
+
 export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, onEdgeClick, onTileClick, highlightNumber }: HexBoardProps) {
   const [hoveredVertex, setHoveredVertex] = useState<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
@@ -58,12 +93,23 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
               const angle = Math.atan2(nextCorner.y - corner.y, nextCorner.x - corner.x) * (180 / Math.PI);
               const edgeId = `edge-${tile.coord.q}-${tile.coord.r}-${i}`;
 
-              // HATA ÇÖZÜMÜ: Optional Chaining yerine boolean kontrol
-              const hasRoad = buildings.some(b => b.type === 'road' && b.coord.q === tile.coord.q && b.coord.r === tile.coord.r && b.coord.edgeIndex === i);
+              // Pixel bazlı yol kontrolü
+              const edgeMidX = (corner.x + nextCorner.x) / 2;
+              const edgeMidY = (corner.y + nextCorner.y) / 2;
+              const existingRoad = findRoadAtPixel(buildings, edgeMidX, edgeMidY);
+              const hasRoad = !!existingRoad && existingRoad.type === 'road';
 
               return (
                 <g key={edgeKey} transform={`translate(${midX}, ${midY}) rotate(${angle})`}
-                  onClick={() => onEdgeClick && onEdgeClick(tile.coord.q, tile.coord.r, i)}
+                  onClick={() => {
+                    // Eğer bu kenar üzerinde bina varsa, orijinal koordinatlarını kullan
+                    const road = findRoadAtPixel(buildings, edgeMidX, edgeMidY);
+                    if (road && onEdgeClick) {
+                      onEdgeClick(road.coord.q, road.coord.r, road.coord.edgeIndex!);
+                    } else if (onEdgeClick) {
+                      onEdgeClick(tile.coord.q, tile.coord.r, i);
+                    }
+                  }}
                   onMouseEnter={() => setHoveredEdge(edgeId)} onMouseLeave={() => setHoveredEdge(null)} className="cursor-pointer">
                   <rect x={-20} y={-10} width={40} height={20} fill="transparent" />
                   {hoveredEdge === edgeId && !hasRoad && (
@@ -83,15 +129,18 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
               if (renderedVertices.has(vKey)) return null;
               renderedVertices.add(vKey);
               const vId = `${tile.coord.q}-${tile.coord.r}-${i}`;
-              const existingBuilding = buildings.find(b =>
-                (b.type === 'settlement' || b.type === 'city') &&
-                b.coord.q === tile.coord.q &&
-                b.coord.r === tile.coord.r &&
-                b.coord.vertexIndex === i
-              );
+              // Pixel bazlı bina kontrolü (shared vertex sorunu çözümü)
+              const existingBuilding = findBuildingAtPixel(buildings, corner.x, corner.y);
               const hasBuilding = !!existingBuilding;
               return (
-                <g key={vKey} onClick={() => onVertexClick && onVertexClick(tile.coord.q, tile.coord.r, i)}>
+                <g key={vKey} onClick={() => {
+                  // Eğer bu köşede bina varsa, ORIJINAL koordinatlarını kullan
+                  if (existingBuilding && onVertexClick) {
+                    onVertexClick(existingBuilding.coord.q, existingBuilding.coord.r, existingBuilding.coord.vertexIndex!);
+                  } else if (onVertexClick) {
+                    onVertexClick(tile.coord.q, tile.coord.r, i);
+                  }
+                }}>
                   <circle cx={corner.x} cy={corner.y} r={14} fill="transparent" className="cursor-pointer"
                     onMouseEnter={() => setHoveredVertex(vId)} onMouseLeave={() => setHoveredVertex(null)} />
                   {hoveredVertex === vId && !hasBuilding && (

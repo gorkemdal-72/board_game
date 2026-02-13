@@ -151,12 +151,17 @@ export class RoomManager {
       const { x, y } = hexToPixel(tile.coord.q, tile.coord.r, HEX_SIZE);
       const tileCorners = getHexCorners(x, y, HEX_SIZE);
 
-      // Bu arazi üzerinde oyuncunun binası var mı?
-      for (const building of myBuildings) {
+      // Bu arazi üzerinde oyuncunun YAPISI var mı? (Sadece Köy/Şehir)
+      const myStructures = myBuildings.filter(b => b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY);
+      for (const building of myStructures) {
+        // GÜVENLİK: vertexIndex kontrolü
+        const vIdx = building.coord.vertexIndex;
+        if (vIdx === undefined || vIdx === null || vIdx < 0 || vIdx >= 6) continue;
+        
         // Binanın koordinatını piksele çevir
         const { x: bx, y: by } = hexToPixel(building.coord.q, building.coord.r, HEX_SIZE);
         const buildingCorners = getHexCorners(bx, by, HEX_SIZE);
-        const buildingPos = buildingCorners[building.coord.vertexIndex || 0];
+        const buildingPos = buildingCorners[vIdx];
 
         // Bina, arazinin köşelerinden birine yakın mı?
         const isOnTile = tileCorners.some(corner => {

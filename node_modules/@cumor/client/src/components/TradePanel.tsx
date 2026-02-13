@@ -49,6 +49,9 @@ const TERRAIN_RESOURCE_MAP: Partial<Record<string, ResourceType>> = {
 
 // Konum Bazlı Karaborsa Oranı Hesaplama
 function getBlackMarketRate(myId: string, buildings: Building[], tiles: Tile[], targetResource: ResourceType): number {
+  // GÜVENLİK: Null/undefined kontrolü
+  if (!tiles || !buildings || tiles.length === 0) return 5;
+
   let bestRate = 5; // Varsayılan (Hiçbir şey yoksa)
   const HEX_SIZE = 50; // App.tsx ile aynı olmalı
 
@@ -69,12 +72,13 @@ function getBlackMarketRate(myId: string, buildings: Building[], tiles: Tile[], 
       // Binanın koordinatını piksele çevir
       const { x: bx, y: by } = hexToPixel(building.coord.q, building.coord.r, HEX_SIZE);
       const buildingCorners = getHexCorners(bx, by, HEX_SIZE);
-      
+
       // GÜVENLİK KONTROLÜ: vertexIndex geçerli mi?
       const vIndex = building.coord.vertexIndex ?? 0;
       if (vIndex < 0 || vIndex >= 6) continue;
 
       const buildingPos = buildingCorners[vIndex];
+      if (!buildingPos) continue;
 
       // Bina, arazinin köşelerinden birine yakın mı?
       // (Mesafe kontrolü)
@@ -98,9 +102,9 @@ function getBlackMarketRate(myId: string, buildings: Building[], tiles: Tile[], 
   // Veya kullanıcının isteğine göre "Orda yolum varsa 4" diyor.
   // Şimdilik bina yoksa 4 varsayalım (Global yol kuralı gibi).
   if (bestRate === 5 && myBuildings.some(b => b.type === BuildingType.ROAD)) {
-     bestRate = 4;
+    bestRate = 4;
   }
-  
+
   return bestRate;
 }
 
