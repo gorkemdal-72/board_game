@@ -38,8 +38,9 @@ function App() {
   const [highlightNumber, setHighlightNumber] = useState<number | null>(null); // ZAR SONUCU (Tile Highlight İçin)
 
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
-    console.log('🔗 Connecting to Socket URL:', socketUrl);
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const socketUrl = isLocal ? 'http://localhost:3001' : 'https://cumorserver-production.up.railway.app';
+    console.log('🔗 Bağlanıyor:', socketUrl);
 
     socket = io(socketUrl, { transports: ['polling', 'websocket'], withCredentials: false });
 
