@@ -1,4 +1,4 @@
-import express from 'express';
+ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -57,6 +57,7 @@ io.on('connection', (socket) => {
     try {
       const room = rooms.get(data.roomId);
       if (!room) throw new Error("Oda bulunamadı!");
+      if (room.isBanned(socket.id)) throw new Error("Bu odadan atıldınız!");
       if (room.password && room.password !== data.password) throw new Error("Yanlış şifre!");
       room.addPlayer(socket.id, data.playerName, data.playerColor);
       playerRoomMap.set(socket.id, data.roomId);
@@ -360,6 +361,29 @@ io.on('connection', (socket) => {
         }
       }
     } catch (e) { console.error("Chat error", e); }
+  });
+
+  // BAN SİSTEMİ
+  socket.on('ban_player', (data: { targetId: string }) => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        const bannedName = room.banPlayer(socket.id, data.targetId);
+        // Atılan oyuncuya bildir
+        io.to(data.targetId).emit('banned_from_room', { message: `Oda sahibi sizi odadan attı!` });
+        // Oyuncuyu odadan çıkar
+        const targetSocket = io.sockets.sockets.get(data.targetId);
+        if (targetSocket) {
+          targetSocket.leave(roomId);
+        }
+        playerRoomMap.delete(data.targetId);
+        io.to(roomId).emit('game_state_update', room.getGameState());
+        io.to(roomId).emit('system_alert', { message: `${bannedName} odadan atıldı! 🚫` });
+        io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+      }
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 });
 

@@ -462,13 +462,12 @@ export class RoomManager {
 
 
 
-    // ÜCRET KESİMİ AŞAĞIYA TAŞINDI
     const targetPos = this.getVertexPixelPos(coords.q, coords.r, coords.vertexIndex);
-    const isOccupied = this.room.buildings.some(b => b.type !== BuildingType.ROAD && this.getDistance(targetPos, this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex!)) < 5);
+    const isOccupied = this.room.buildings.some(b => (b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY) && b.coord.vertexIndex !== undefined && this.getDistance(targetPos, this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex!)) < 5);
     if (isOccupied) throw new Error("Bu köşe dolu!");
 
     // MESAFE KURALI: 2 yol mesafesi (yaklaşık 1 altıgen kenarı)
-    const isTooClose = this.room.buildings.some(b => b.type !== BuildingType.ROAD && this.getDistance(targetPos, this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex!)) < (HEX_SIZE + 5));
+    const isTooClose = this.room.buildings.some(b => (b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY) && b.coord.vertexIndex !== undefined && this.getDistance(targetPos, this.getVertexPixelPos(b.coord.q, b.coord.r, b.coord.vertexIndex!)) < (HEX_SIZE + 5));
     if (isTooClose) throw new Error("Çok yakın! Yapılar arası en az 2 yol mesafesi olmalı.");
 
     if (!isSetup) {
@@ -1127,4 +1126,30 @@ export class RoomManager {
   getGameState() { return this.room; }
   removePlayer(id: string) { this.room.players = this.room.players.filter(p => p.id !== id); }
   isEmpty() { return this.room.players.length === 0; }
+
+  // BAN SİSTEMİ
+  private bannedIds: Set<string> = new Set();
+
+  banPlayer(requesterId: string, targetId: string): string {
+    if (requesterId !== this.room.hostId) throw new Error("Sadece oda sahibi oyuncu atabilir!");
+    if (targetId === this.room.hostId) throw new Error("Kendinizi atamazsınız!");
+    const target = this.room.players.find(p => p.id === targetId);
+    if (!target) throw new Error("Oyuncu bulunamadı!");
+    
+    this.bannedIds.add(targetId);
+    this.room.players = this.room.players.filter(p => p.id !== targetId);
+    
+    // Eğer atılan oyuncu aktif oyuncuysa, sırayı değiştir
+    if (this.room.activePlayerId === targetId && this.room.players.length > 0) {
+      const currentIndex = 0; // İlk oyuncuya geç
+      this.room.activePlayerId = this.room.players[currentIndex].id;
+      this.room.turnSubPhase = 'waiting';
+    }
+    
+    return target.name;
+  }
+
+  isBanned(id: string): boolean {
+    return this.bannedIds.has(id);
+  }
 }

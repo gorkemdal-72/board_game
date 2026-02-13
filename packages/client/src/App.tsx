@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { HexBoard } from './components/HexBoard';
 import { Lobby } from './components/Lobby';
-import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType } from '@cumor/shared';
+import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType, hexToPixel, getHexCorners } from '@cumor/shared';
 import { io, Socket } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify';
 import { ResourcePanel } from './components/ResourcePanel';
@@ -89,6 +89,11 @@ function App() {
     socket.on('join_success', () => setIsInGame(true));
     socket.on('error_message', (data: { message: string }) => toast.error(data.message));
     socket.on('system_alert', (data: { message: string }) => toast.info(data.message));
+    socket.on('banned_from_room', (data: { message: string }) => {
+      toast.error(data.message);
+      setIsInGame(false);
+      setGameStatus(GameStatus.LOBBY);
+    });
     return () => { socket.disconnect(); };
   }, []);
 
@@ -115,16 +120,33 @@ function App() {
   };
   const handleEdgeClick = (q: number, r: number, i: number) => {
     if (activePlayerId === myId) {
-      // Enkaz kontrolü - enkaz varsa tamir et
-      const debris = buildings.find(b =>
-        b.type === 'debris' &&
-        b.coord.q === q &&
-        b.coord.r === r &&
-        b.coord.edgeIndex === i
-      );
+      // Enkaz kontrolü - piksel bazlı eşleştirme
+      const HEX = 50;
+      const { x, y } = hexToPixel(q, r, HEX);
+      const corners = getHexCorners(x, y, HEX);
+      const c1 = corners[i];
+      const c2 = corners[(i + 1) % 6];
+      const clickMidX = (c1.x + c2.x) / 2;
+      const clickMidY = (c1.y + c2.y) / 2;
+
+      // Enkaz bul (piksel mesafesi ile)
+      const debris = buildings.find(b => {
+        if (b.type !== 'debris') return false;
+        if (b.coord.edgeIndex === undefined || b.coord.edgeIndex < 0) return false;
+        const { x: bx, y: by } = hexToPixel(b.coord.q, b.coord.r, HEX);
+        const bc = getHexCorners(bx, by, HEX);
+        const bc1 = bc[b.coord.edgeIndex];
+        const bc2 = bc[(b.coord.edgeIndex + 1) % 6];
+        const mx = (bc1.x + bc2.x) / 2;
+        const my = (bc1.y + bc2.y) / 2;
+        const dx = mx - clickMidX;
+        const dy = my - clickMidY;
+        return Math.sqrt(dx * dx + dy * dy) < 5;
+      });
 
       if (debris) {
-        socket.emit('repair_debris', { q, r, edgeIndex: i });
+        // Orijinal koordinatları gönder
+        socket.emit('repair_debris', { q: debris.coord.q, r: debris.coord.r, edgeIndex: debris.coord.edgeIndex });
         return;
       }
 
@@ -266,6 +288,15 @@ function App() {
                       <div className="ml-2 bg-yellow-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse">
                         {isMe ? 'SIRA SENDE!' : 'DÜŞÜNÜYOR...'}
                       </div>
+                    )}
+                    {/* BAN BUTONU - Sadece host görür, kendisi değil */}
+                    {myId === hostId && !isMe && (
+                      <button
+                        onClick={() => { if (confirm(`${p.name} oyuncusunu odadan atmak istiyor musunuz?`)) socket.emit('ban_player', { targetId: p.id }); }}
+                        className="ml-1 text-red-500 hover:text-red-300 text-xs font-bold pointer-events-auto" title="Oyuncuyu At"
+                      >
+                        🚫
+                      </button>
                     )}
                   </div>
                 );

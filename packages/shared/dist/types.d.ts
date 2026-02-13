@@ -43,7 +43,11 @@ export declare enum PlayerColor {
     RED = "red",
     BLUE = "blue",
     ORANGE = "orange",
-    WHITE = "white"
+    WHITE = "white",
+    GREEN = "#2ecc71",
+    PURPLE = "#9b59b6",
+    PINK = "#e91e63",
+    CYAN = "#00bcd4"
 }
 export interface Coord {
     q: number;

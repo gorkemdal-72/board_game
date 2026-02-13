@@ -151,7 +151,7 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
             });
           })}
 
-          {/* 4. BİNALAR (HATA ÇÖZÜMÜ BURADA) */}
+          {/* 4. BİNALAR - TIKLANABİLİR */}
           {buildings.map((b) => {
             const { x, y } = hexToPixel(b.coord.q, b.coord.r, HEX_SIZE);
             const corners = getHexCorners(x, y, HEX_SIZE);
@@ -162,24 +162,28 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
               if (b.coord.vertexIndex === undefined) return null;
               const c = corners[b.coord.vertexIndex];
               return (
-                <g key={b.id} transform={`translate(${c.x}, ${c.y})`}>
+                <g key={b.id} transform={`translate(${c.x}, ${c.y})`}
+                  onClick={() => onVertexClick && onVertexClick(b.coord.q, b.coord.r, b.coord.vertexIndex!)}
+                  className="cursor-pointer hover:opacity-80 transition-opacity">
                   <circle r={9} fill="rgba(0,0,0,0.4)" filter="blur(2px)" />
                   <path d="M -10 0 L -10 -10 L 0 -18 L 10 -10 L 10 0 Z" fill={color} stroke="white" strokeWidth={2} />
+                  {/* Tıklanabilir alan */}
+                  <circle r={16} fill="transparent" />
                 </g>
               );
             }
 
-            // ŞEHİR ÇİZİMİ (YENİ)
+            // ŞEHİR ÇİZİMİ
             if (b.type === 'city') {
               if (b.coord.vertexIndex === undefined) return null;
               const c = corners[b.coord.vertexIndex];
               return (
-                <g key={b.id} transform={`translate(${c.x}, ${c.y})`}>
+                <g key={b.id} transform={`translate(${c.x}, ${c.y})`}
+                  onClick={() => onVertexClick && onVertexClick(b.coord.q, b.coord.r, b.coord.vertexIndex!)}
+                  className="cursor-pointer">
                   <circle r={12} fill="rgba(0,0,0,0.5)" filter="blur(3px)" />
-                  {/* Daha büyük, çift katmanlı yapı */}
                   <rect x={-12} y={-8} width={24} height={16} fill={color} stroke="white" strokeWidth={2} rx={2} />
                   <path d="M -12 -8 L 0 -18 L 12 -8" fill={color} stroke="white" strokeWidth={2} />
-                  {/* Kule */}
                   <rect x={-4} y={-22} width={8} height={6} fill={color} stroke="white" strokeWidth={1} />
                 </g>
               );

@@ -39,6 +39,10 @@ export var PlayerColor;
     PlayerColor["BLUE"] = "blue";
     PlayerColor["ORANGE"] = "orange";
     PlayerColor["WHITE"] = "white";
+    PlayerColor["GREEN"] = "#2ecc71";
+    PlayerColor["PURPLE"] = "#9b59b6";
+    PlayerColor["PINK"] = "#e91e63";
+    PlayerColor["CYAN"] = "#00bcd4";
 })(PlayerColor || (PlayerColor = {}));
 export var DevCardType;
 (function (DevCardType) {
