@@ -92,6 +92,7 @@ export interface GameState {
     }[];
     freeRoadsRemaining: number;
     traderPicksRemaining: number;
+    devCardDeckCount?: number;
 }
 export interface RoomInfo {
     id: string;

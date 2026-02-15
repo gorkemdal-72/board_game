@@ -1243,7 +1243,7 @@ export class RoomManager {
 
   // ODA BİLGİSİ: Lobby'de gösterilen oda bilgisi (maxPlayers 5'e çıkarıldı)
   getRoomInfo(): RoomInfo { return { id: this.room.id, name: this.name, playerCount: this.room.players.length, maxPlayers: 5, isLocked: !!this.password, status: this.room.status }; }
-  getGameState() { return this.room; }
+  getGameState() { return { ...this.room, devCardDeckCount: this.devCardDeck.length }; }
   removePlayer(id: string) { this.room.players = this.room.players.filter(p => p.id !== id); }
   isEmpty() { return this.room.players.length === 0; }
 

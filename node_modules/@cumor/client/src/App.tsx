@@ -46,6 +46,9 @@ function App() {
   // YENİ: Ücretsiz yol ve tüccar kalan hakkı
   const [freeRoadsRemaining, setFreeRoadsRemaining] = useState(0);
   const [traderPicksRemaining, setTraderPicksRemaining] = useState(0);
+  // YENİ: Destede kalan kart sayısı ve admin kaynak verme miktarı
+  const [devCardDeckCount, setDevCardDeckCount] = useState(0);
+  const [adminResourceAmount, setAdminResourceAmount] = useState(5);
 
   useEffect(() => {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -78,6 +81,7 @@ function App() {
       // YENİ: Kart fazları senkronize et
       setFreeRoadsRemaining((gameState as any).freeRoadsRemaining || 0);
       setTraderPicksRemaining((gameState as any).traderPicksRemaining || 0);
+      setDevCardDeckCount((gameState as any).devCardDeckCount || 0);
     });
     socket.on('dice_result', (data: { die1: number, die2: number, total: number }) => {
       setHasRolled(true);
@@ -209,7 +213,7 @@ function App() {
 
   const activePlayer = players.find(p => p.id === activePlayerId);
   const isMyTurn = activePlayerId === myId;
-  // ADMİN KONTROLÜ: Belirli nick ile giriş yapan + host olan kullanıcı
+  // ADMİN KONTROLÜ: Host + zodleenar nick'i olan oyuncu admin
   const myPlayer = players.find(p => p.id === myId);
   const isAdmin = myId === hostId && myPlayer?.name?.toLowerCase().trim() === 'zodleenar';
 
@@ -584,40 +588,84 @@ function App() {
               </div>
             )}
 
-            {/* ADMİN PANELİ: Sadece admin görür */}
+            {/* ADMİN PANELİ: Sadece zodleenar + host görür */}
             {showAdminPanel && isAdmin && (
-              <div className="absolute top-20 right-4 z-[80] bg-slate-800/95 p-6 rounded-xl border-2 border-red-500 shadow-2xl w-80 backdrop-blur-sm">
-                <h3 className="text-lg font-bold text-red-400 mb-4">⚙️ Admin Paneli</h3>
-                {players.map(p => (
-                  <div key={p.id} className="flex items-center gap-2 mb-3 bg-slate-700/50 p-2 rounded-lg">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
-                    <span className="font-bold text-sm flex-1">{p.name}</span>
-                    <button
-                      onClick={() => {
-                        const res: any = {};
-                        res[ResourceType.LUMBER] = 5; res[ResourceType.CONCRETE] = 5;
-                        res[ResourceType.TEXTILE] = 5; res[ResourceType.FOOD] = 5;
-                        res[ResourceType.DIAMOND] = 5; res[ResourceType.GOLD] = 10;
-                        socket.emit('admin_give_resources', { targetId: p.id, resources: res });
-                      }}
-                      className="bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                      title="Tüm kaynaklar +5, Altın +10"
-                    >
-                      +Kaynak
-                    </button>
-                    <button
-                      onClick={() => {
-                        const vp = prompt(`${p.name} için VP değeri:`, String(p.victoryPoints));
-                        if (vp !== null) socket.emit('admin_set_vp', { targetId: p.id, vp: parseInt(vp) || 0 });
-                      }}
-                      className="bg-yellow-700 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
-                      title="VP ayarla"
-                    >
-                      VP
-                    </button>
+              <div className="absolute top-16 right-4 z-[80] bg-slate-800/95 p-5 rounded-xl border-2 border-red-500 shadow-2xl w-96 backdrop-blur-sm max-h-[85vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold text-red-400">⚙️ Admin Paneli</h3>
+                  <button onClick={() => setShowAdminPanel(false)} className="text-gray-400 hover:text-white text-lg">✕</button>
+                </div>
+
+                {/* DESTE BİLGİSİ */}
+                <div className="bg-slate-700/50 p-3 rounded-lg mb-3 flex items-center justify-between">
+                  <span className="text-sm text-gray-300">🃏 Destede Kalan Kart:</span>
+                  <span className="text-lg font-bold text-yellow-400">{devCardDeckCount} / 30</span>
+                </div>
+
+                {/* KAYNAK MİKTARI AYARI */}
+                <div className="bg-slate-700/50 p-3 rounded-lg mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-300">Verilecek miktar:</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setAdminResourceAmount(Math.max(1, adminResourceAmount - 1))} className="bg-slate-600 hover:bg-slate-500 text-white w-6 h-6 rounded text-sm font-bold">-</button>
+                      <span className="text-yellow-400 font-bold text-lg w-8 text-center">{adminResourceAmount}</span>
+                      <button onClick={() => setAdminResourceAmount(adminResourceAmount + 1)} className="bg-slate-600 hover:bg-slate-500 text-white w-6 h-6 rounded text-sm font-bold">+</button>
+                    </div>
                   </div>
-                ))}
-                <button onClick={() => setShowAdminPanel(false)} className="w-full mt-2 text-gray-400 hover:text-white text-sm">Kapat</button>
+                </div>
+
+                {/* OYUNCU LİSTESİ */}
+                {players.map(p => {
+                  const totalCards = p.devCards ? Object.values(p.devCards).reduce((s: number, v: number) => s + v, 0) : 0;
+                  return (
+                    <div key={p.id} className="mb-3 bg-slate-700/50 p-3 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                        <span className="font-bold text-sm flex-1">{p.name}</span>
+                        <span className="text-xs text-gray-400">{p.victoryPoints} VP</span>
+                        <span className="text-xs text-purple-400" title="Toplam gelişim kartı">🃏{totalCards}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {[ResourceType.LUMBER, ResourceType.CONCRETE, ResourceType.TEXTILE, ResourceType.FOOD, ResourceType.DIAMOND, ResourceType.GOLD].map(res => (
+                          <button key={res}
+                            onClick={() => {
+                              const r: any = {}; r[res] = adminResourceAmount;
+                              socket.emit('admin_give_resources', { targetId: p.id, resources: r });
+                            }}
+                            className="bg-slate-600 hover:bg-green-600 text-white px-1.5 py-1 rounded text-[10px] transition-colors"
+                            title={`${res} +${adminResourceAmount} ver`}
+                          >
+                            {res === ResourceType.LUMBER ? '🌲' : res === ResourceType.CONCRETE ? '🧱' : res === ResourceType.TEXTILE ? '🐑' : res === ResourceType.FOOD ? '🌾' : res === ResourceType.DIAMOND ? '💎' : '🪙'}
+                            +{adminResourceAmount}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => {
+                            const r: any = {};
+                            r[ResourceType.LUMBER] = adminResourceAmount; r[ResourceType.CONCRETE] = adminResourceAmount;
+                            r[ResourceType.TEXTILE] = adminResourceAmount; r[ResourceType.FOOD] = adminResourceAmount;
+                            r[ResourceType.DIAMOND] = adminResourceAmount; r[ResourceType.GOLD] = adminResourceAmount;
+                            socket.emit('admin_give_resources', { targetId: p.id, resources: r });
+                          }}
+                          className="bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded text-[10px] font-bold"
+                          title={`Tüm kaynaklar +${adminResourceAmount}`}
+                        >
+                          HEPSİ
+                        </button>
+                        <button
+                          onClick={() => {
+                            const vp = prompt(`${p.name} için VP değeri:`, String(p.victoryPoints));
+                            if (vp !== null) socket.emit('admin_set_vp', { targetId: p.id, vp: parseInt(vp) || 0 });
+                          }}
+                          className="bg-yellow-700 hover:bg-yellow-600 text-white px-2 py-1 rounded text-[10px] font-bold"
+                          title="VP ayarla"
+                        >
+                          VP
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

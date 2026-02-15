@@ -101,6 +101,7 @@ export interface GameState {
   // YENİ: Gelişim Kartı Özel Fazları
   freeRoadsRemaining: number;           // Mühendis kartı: Kalan ücretsiz yol hakkı
   traderPicksRemaining: number;         // Tüccar kartı: Kalan kaynak seçme hakkı
+  devCardDeckCount?: number;            // Destede kalan kart sayısı (admin bilgisi)
 }
 
 export interface RoomInfo {
