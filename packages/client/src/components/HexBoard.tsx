@@ -66,10 +66,15 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
   const renderedVertices = new Set<string>();
   const renderedEdges = new Set<string>();
 
+  // 5 kişilik büyük harita tespiti: 19'dan fazla tile varsa büyük harita demektir
+  const isBigMap = tiles.length > 19;
+  const svgViewBox = isBigMap ? "-400 -400 800 800" : "-250 -250 500 500";
+  const svgSize = isBigMap ? 900 : 800;
+
   return (
     <div className="flex items-center justify-center">
-      {/* ViewBox ayarlandı, harita ortalandı */}
-      <svg width="800" height="800" viewBox="-250 -250 500 500"
+      {/* ViewBox dinamik: 5 kişilik büyük haritada daha geniş alan */}
+      <svg width={svgSize} height={svgSize} viewBox={svgViewBox}
         className="bg-[#1e293b] border-[12px] border-[#0f172a] rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-visible">
         <g>
           {/* 1. ARAZİLER */}

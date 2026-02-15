@@ -1,4 +1,4 @@
- import express from 'express';
+import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -166,13 +166,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('play_card', (data: { cardType: any }) => {
+  // KART OYNAMA: Gelişim kartı kullanma (Mercator için targetResource parametresi eklendi)
+  socket.on('play_card', (data: { cardType: any, targetResource?: any }) => {
     try {
       const roomId = playerRoomMap.get(socket.id);
       if (!roomId) return;
       const room = rooms.get(roomId);
       if (room) {
-        const message = room.playDevelopmentCard(socket.id, data.cardType);
+        // Mercator kartı için targetResource parametresini de gönder
+        const message = room.playDevelopmentCard(socket.id, data.cardType, data.targetResource);
         io.to(roomId).emit('game_state_update', room.getGameState());
 
         // İşlem başarılıysa bildirim gönder
@@ -382,6 +384,48 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('game_state_update', room.getGameState());
         io.to(roomId).emit('system_alert', { message: `${bannedName} odadan atıldı! 🚫` });
         io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+      }
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
+  });
+
+  // TÜCCAR KARTI: Bankadan kaynak seçme (3 kez çağrılır)
+  socket.on('trader_pick_resource', (data: { resource: any }) => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        const msg = room.traderPickResource(socket.id, data.resource);
+        io.to(roomId).emit('game_state_update', room.getGameState());
+        socket.emit('system_alert', { message: msg });
+      }
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
+  });
+
+  // ADMİN: Kaynak ekleme (sadece host)
+  socket.on('admin_give_resources', (data: { targetId: string, resources: any }) => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        const msg = room.adminGiveResources(socket.id, data.targetId, data.resources);
+        io.to(roomId).emit('game_state_update', room.getGameState());
+        socket.emit('system_alert', { message: msg });
+      }
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
+  });
+
+  // ADMİN: VP ayarlama (sadece host)
+  socket.on('admin_set_vp', (data: { targetId: string, vp: number }) => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        const msg = room.adminSetVP(socket.id, data.targetId, data.vp);
+        io.to(roomId).emit('game_state_update', room.getGameState());
+        socket.emit('system_alert', { message: msg });
       }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });

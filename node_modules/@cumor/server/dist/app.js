@@ -28,10 +28,8 @@ io.on('connection', (socket) => {
     console.log(`🔌 Yeni bağlantı: ${socket.id}`);
     socket.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
     socket.on('create_room', (data) => {
-        console.log('Received create_room:', data);
         try {
             const roomId = Math.random().toString(36).substr(2, 9);
-            console.log('Creating room id:', roomId);
             const newRoom = new RoomManager(roomId, data.roomName, data.password);
             newRoom.addPlayer(socket.id, data.playerName, data.playerColor);
             rooms.set(roomId, newRoom);
@@ -40,10 +38,8 @@ io.on('connection', (socket) => {
             socket.emit('join_success');
             io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
             io.to(roomId).emit('game_state_update', newRoom.getGameState());
-            console.log('Room created successfully');
         }
         catch (e) {
-            console.error('Error creating room:', e);
             socket.emit('error_message', { message: e.message });
         }
     });
@@ -52,6 +48,8 @@ io.on('connection', (socket) => {
             const room = rooms.get(data.roomId);
             if (!room)
                 throw new Error("Oda bulunamadı!");
+            if (room.isBanned(socket.id))
+                throw new Error("Bu odadan atıldınız!");
             if (room.password && room.password !== data.password)
                 throw new Error("Yanlış şifre!");
             room.addPlayer(socket.id, data.playerName, data.playerColor);
@@ -167,6 +165,7 @@ io.on('connection', (socket) => {
             socket.emit('error_message', { message: e.message });
         }
     });
+    // KART OYNAMA: Gelişim kartı kullanma (Mercator için targetResource parametresi eklendi)
     socket.on('play_card', (data) => {
         try {
             const roomId = playerRoomMap.get(socket.id);
@@ -174,7 +173,8 @@ io.on('connection', (socket) => {
                 return;
             const room = rooms.get(roomId);
             if (room) {
-                const message = room.playDevelopmentCard(socket.id, data.cardType);
+                // Mercator kartı için targetResource parametresini de gönder
+                const message = room.playDevelopmentCard(socket.id, data.cardType, data.targetResource);
                 io.to(roomId).emit('game_state_update', room.getGameState());
                 // İşlem başarılıysa bildirim gönder
                 if (message) {
@@ -376,7 +376,8 @@ io.on('connection', (socket) => {
             socket.emit('error_message', { message: e.message });
         }
     });
-    socket.on('chat_message', (message) => {
+    // CHAT SİSTEMİ
+    socket.on('send_chat_message', (data) => {
         try {
             const roomId = playerRoomMap.get(socket.id);
             if (!roomId)
@@ -385,16 +386,91 @@ io.on('connection', (socket) => {
             if (room) {
                 const player = room.getGameState().players.find(p => p.id === socket.id);
                 if (player) {
-                    const chatMsg = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        playerId: player.id,
-                        playerName: player.name,
-                        playerColor: player.color, // shared/src/types.ts export'u kullanılıyor
-                        message: message.trim(),
+                    io.to(roomId).emit('chat_message', {
+                        senderId: player.id,
+                        senderName: player.name,
+                        text: data.text,
+                        color: player.color, // Mesaj rengi oyuncu rengi olsun
                         timestamp: Date.now()
-                    };
-                    io.to(roomId).emit('chat_message', chatMsg);
+                    });
                 }
+            }
+        }
+        catch (e) {
+            console.error("Chat error", e);
+        }
+    });
+    // BAN SİSTEMİ
+    socket.on('ban_player', (data) => {
+        try {
+            const roomId = playerRoomMap.get(socket.id);
+            if (!roomId)
+                return;
+            const room = rooms.get(roomId);
+            if (room) {
+                const bannedName = room.banPlayer(socket.id, data.targetId);
+                // Atılan oyuncuya bildir
+                io.to(data.targetId).emit('banned_from_room', { message: `Oda sahibi sizi odadan attı!` });
+                // Oyuncuyu odadan çıkar
+                const targetSocket = io.sockets.sockets.get(data.targetId);
+                if (targetSocket) {
+                    targetSocket.leave(roomId);
+                }
+                playerRoomMap.delete(data.targetId);
+                io.to(roomId).emit('game_state_update', room.getGameState());
+                io.to(roomId).emit('system_alert', { message: `${bannedName} odadan atıldı! 🚫` });
+                io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+            }
+        }
+        catch (e) {
+            socket.emit('error_message', { message: e.message });
+        }
+    });
+    // TÜCCAR KARTI: Bankadan kaynak seçme (3 kez çağrılır)
+    socket.on('trader_pick_resource', (data) => {
+        try {
+            const roomId = playerRoomMap.get(socket.id);
+            if (!roomId)
+                return;
+            const room = rooms.get(roomId);
+            if (room) {
+                const msg = room.traderPickResource(socket.id, data.resource);
+                io.to(roomId).emit('game_state_update', room.getGameState());
+                socket.emit('system_alert', { message: msg });
+            }
+        }
+        catch (e) {
+            socket.emit('error_message', { message: e.message });
+        }
+    });
+    // ADMİN: Kaynak ekleme (sadece host)
+    socket.on('admin_give_resources', (data) => {
+        try {
+            const roomId = playerRoomMap.get(socket.id);
+            if (!roomId)
+                return;
+            const room = rooms.get(roomId);
+            if (room) {
+                const msg = room.adminGiveResources(socket.id, data.targetId, data.resources);
+                io.to(roomId).emit('game_state_update', room.getGameState());
+                socket.emit('system_alert', { message: msg });
+            }
+        }
+        catch (e) {
+            socket.emit('error_message', { message: e.message });
+        }
+    });
+    // ADMİN: VP ayarlama (sadece host)
+    socket.on('admin_set_vp', (data) => {
+        try {
+            const roomId = playerRoomMap.get(socket.id);
+            if (!roomId)
+                return;
+            const room = rooms.get(roomId);
+            if (room) {
+                const msg = room.adminSetVP(socket.id, data.targetId, data.vp);
+                io.to(roomId).emit('game_state_update', room.getGameState());
+                socket.emit('system_alert', { message: msg });
             }
         }
         catch (e) {

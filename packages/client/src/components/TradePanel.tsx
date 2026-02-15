@@ -32,10 +32,11 @@ interface TradePanelProps {
   currentOffer: TradeOffer | null;
   myId: string;
   players: Player[];
-  buildings: Building[]; // YENİ: Dinamik oran hesabı için
-  tiles: Tile[]; // Tile[], ama import sorunu olmasın diye any yaptık, aşağıda cast ederiz veya Tile import ederiz
+  buildings: Building[];
+  tiles: Tile[];
   onBuyVictoryPoint?: () => void;
   canBuyVP?: boolean;
+  isMyTurn?: boolean; // YENİ: Sıra kontrolü - sadece sırası gelen ihracat/karaborsa yapabilir
 }
 
 // Arazi Tipine Göre Kaynak Haritası
@@ -130,7 +131,7 @@ export function TradePanel(props: TradePanelProps) {
   };
 
   return (
-    <div className="absolute left-6 top-55 w-80 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-4 shadow-2xl z-40 max-h-[70vh] overflow-y-auto">
+    <div className="absolute left-2 top-2 w-80 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-4 shadow-2xl z-40 max-h-[70vh] overflow-y-auto">
       {/* SEKMELER */}
       <div className="flex border-b border-slate-700 mb-4">
         <button onClick={() => setActiveTab('bank')} className={`flex-1 py-2 font-bold text-sm ${activeTab === 'bank' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-400'}`}>BANKA</button>
@@ -152,7 +153,9 @@ export function TradePanel(props: TradePanelProps) {
                 <button
                   key={`sell-${res}`}
                   onClick={() => props.onBankSell(res)}
-                  className="bg-slate-800 hover:bg-green-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all"
+                  disabled={!props.isMyTurn} // Sıra kontrolü
+                  className={`bg-slate-800 hover:bg-green-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all ${!props.isMyTurn ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  title={!props.isMyTurn ? 'Sıra sende değil!' : `${SELL_RATES[res]} ${RESOURCE_NAMES[res]} satıp 1 Altın kazan`}
                 >
                   <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
@@ -178,7 +181,9 @@ export function TradePanel(props: TradePanelProps) {
                   <button
                     key={`buy-${res}`}
                     onClick={() => props.onBankBuy(res)}
-                    className="bg-slate-800 hover:bg-red-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all"
+                    disabled={!props.isMyTurn} // Sıra kontrolü
+                    className={`bg-slate-800 hover:bg-red-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all ${!props.isMyTurn ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    title={!props.isMyTurn ? 'Sıra sende değil!' : `${rate} Altın ödeyerek 1 ${RESOURCE_NAMES[res]} al`}
                   >
                     <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
                     <div className="flex items-center gap-1 text-[10px] text-gray-400">

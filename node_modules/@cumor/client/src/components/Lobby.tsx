@@ -10,6 +10,7 @@ interface LobbyProps {
 
 export function Lobby({ rooms, onCreateRoom, onJoinRoom }: LobbyProps) {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [showRulebook, setShowRulebook] = useState(false); // YENİ: Kural kitabı modalı
 
   // Form State
   const [playerName, setPlayerName] = useState("");
@@ -26,7 +27,16 @@ export function Lobby({ rooms, onCreateRoom, onJoinRoom }: LobbyProps) {
 
   return (
     <div className="flex flex-col items-center bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700 w-[600px] h-[500px]">
-      <h2 className="text-3xl font-bold text-white mb-6 tracking-widest font-mono">SERVER BROWSER</h2>
+      <div className="flex items-center justify-between w-full mb-6">
+        <h2 className="text-3xl font-bold text-white tracking-widest font-mono">SERVER BROWSER</h2>
+        <button
+          onClick={() => setShowRulebook(true)}
+          className="bg-amber-700 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+          title="Oyun kurallarını gör"
+        >
+          📖 Kural Kitabı
+        </button>
+      </div>
 
       {/* TABLAR */}
       <div className="flex w-full mb-6 border-b border-slate-600">
@@ -133,6 +143,43 @@ export function Lobby({ rooms, onCreateRoom, onJoinRoom }: LobbyProps) {
           >
             ODAYI KUR VE GİR 🎲
           </button>
+        </div>
+      )}
+      {/* KURAL KİTABI MODALI */}
+      {showRulebook && (
+        <div className="fixed inset-0 bg-black/80 z-[999] flex items-center justify-center backdrop-blur-sm" onClick={() => setShowRulebook(false)}>
+          <div className="bg-slate-800 p-8 rounded-2xl border-2 border-amber-500 shadow-2xl max-w-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h2 className="text-2xl font-black text-amber-400 mb-4">📖 CUMOR - Oyun Kuralları</h2>
+            <div className="text-gray-300 text-sm space-y-3 leading-relaxed">
+              <p><strong className="text-white">🎯 Amaç:</strong> 10 Zafer Puanı'na (VP) ilk ulaşan oyuncu kazanır.</p>
+              <p><strong className="text-white">🎲 Tur Döngüsü:</strong> Zar at → Kaynak topla → İnşa et / Ticaret yap / Kart oyna → Turu bitir.</p>
+              <p><strong className="text-white">🏠 Yapılar:</strong></p>
+              <ul className="list-disc list-inside ml-2 space-y-1">
+                <li><span className="text-white">Yol:</span> 1 Beton + 1 Kereste</li>
+                <li><span className="text-white">Köy:</span> 1 Beton + 1 Kereste + 1 Tekstil + 1 Gıda (+1 VP)</li>
+                <li><span className="text-white">Şehir:</span> 2 Gıda + 3 Elmas (Çift kaynak + 2 VP)</li>
+              </ul>
+              <p><strong className="text-white">💰 Ticaret:</strong></p>
+              <ul className="list-disc list-inside ml-2 space-y-1">
+                <li><span className="text-white">İhracat:</span> Kaynak satıp Altın kazan</li>
+                <li><span className="text-white">Karaborsa:</span> Altın vererek kaynak al (oran binana göre: Şehir=2, Köy=3, Yol=4, Yok=5)</li>
+                <li><span className="text-white">15 Altın = 1 VP</span> satın alabilirsin</li>
+              </ul>
+              <p><strong className="text-white">🃏 Gelişim Kartları:</strong></p>
+              <ul className="list-disc list-inside ml-2 space-y-1">
+                <li><span className="text-white">Vergi Memuru (⚔️):</span> Hırsızı taşı + ordu büyüt (3 = En Güçlü Ordu +2 VP)</li>
+                <li><span className="text-white">Sabotaj (💣):</span> Rakip yol yık</li>
+                <li><span className="text-white">Kartel (🏢):</span> Tüm kaynak üretimi sana gelsin</li>
+                <li><span className="text-white">Sigorta (🛡️):</span> Sabotajdan otomatik koru</li>
+                <li><span className="text-white">Mühendis (🛣️):</span> Ücretsiz 2 yol inşa et</li>
+                <li><span className="text-white">Tüccar (📦):</span> Bankadan 3 kaynak bedava al</li>
+                <li><span className="text-white">Mercator (🌍):</span> Rakiplerden kaynak topla (ceza sistemli)</li>
+              </ul>
+              <p><strong className="text-white">🎲 7 Zarı:</strong> 7+ kaynağı olan oyuncular yarısını kaybeder. Vergi Memuru harekete geçer.</p>
+              <p><strong className="text-white">🛤️ En Uzun Yol:</strong> 5+ kesilmeyen yol zinciri = +2 VP</p>
+            </div>
+            <button onClick={() => setShowRulebook(false)} className="mt-6 w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg font-bold">Kapat</button>
+          </div>
         </div>
       )}
     </div>

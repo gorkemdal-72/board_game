@@ -22,10 +22,10 @@ const BUILDING_COSTS: Record<string, Record<ResourceType, number>> = {
     [BuildingType.CITY]: {
         [ResourceType.GOLD]: 0,
         [ResourceType.LUMBER]: 0,
-        [ResourceType.CONCRETE]: 3,
+        [ResourceType.CONCRETE]: 0,
         [ResourceType.TEXTILE]: 0,
         [ResourceType.FOOD]: 2,
-        [ResourceType.DIAMOND]: 0,
+        [ResourceType.DIAMOND]: 3,
     },
     'devCard': {
         [ResourceType.GOLD]: 0,

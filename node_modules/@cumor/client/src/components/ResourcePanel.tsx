@@ -4,7 +4,7 @@ import { ResourceType, DevCardType } from '@cumor/shared';
 const RESOURCE_ICONS: Record<ResourceType, string> = {
   [ResourceType.LUMBER]: '🌲',
   [ResourceType.CONCRETE]: '🧱',
-  [ResourceType.TEXTILE]: '🐑',
+  [ResourceType.TEXTILE]: '🧵',
   [ResourceType.FOOD]: '🌾',
   [ResourceType.DIAMOND]: '💎',
   [ResourceType.GOLD]: '💰'
@@ -24,7 +24,10 @@ const CARD_ICONS: Record<DevCardType, string> = {
   [DevCardType.SABOTAGE]: '💣',
   [DevCardType.CARTEL]: '🏢',
   [DevCardType.INSURANCE]: '🛡️',
-  [DevCardType.VICTORY_POINT]: '🏆'
+  [DevCardType.VICTORY_POINT]: '🏆',
+  [DevCardType.ENGINEER]: '🛣️',
+  [DevCardType.TRADER]: '📦',
+  [DevCardType.MERCATOR]: '🌍'
 };
 
 const CARD_NAMES: Record<DevCardType, string> = {
@@ -32,7 +35,22 @@ const CARD_NAMES: Record<DevCardType, string> = {
   [DevCardType.SABOTAGE]: 'Sabotaj',
   [DevCardType.CARTEL]: 'Kartel',
   [DevCardType.INSURANCE]: 'Sigorta',
-  [DevCardType.VICTORY_POINT]: 'Zafer P.'
+  [DevCardType.VICTORY_POINT]: 'Zafer P.',
+  [DevCardType.ENGINEER]: 'Mühendis',
+  [DevCardType.TRADER]: 'Tüccar',
+  [DevCardType.MERCATOR]: 'Mercator'
+};
+
+// Kart açıklamaları (tooltip için)
+const CARD_TOOLTIPS: Record<DevCardType, string> = {
+  [DevCardType.MERCENARY]: 'Vergi Memurunu taşı + vergi adam olmak için 3 tane açman gerekiyor',
+  [DevCardType.SABOTAGE]: 'Haritadaki bir rakip yolu yok et',
+  [DevCardType.CARTEL]: 'Bir kaynağı tekelini. Rakipler sana öder',
+  [DevCardType.INSURANCE]: 'Sonraki 7 zaranda kaynak kaybetmezsin',
+  [DevCardType.VICTORY_POINT]: 'Anında +1 Zafer Puanı',
+  [DevCardType.ENGINEER]: 'Ücretsiz 2 yol inşa et',
+  [DevCardType.TRADER]: 'Bankadan 3 kaynak çek (altın hariç)',
+  [DevCardType.MERCATOR]: 'Her rakipten max 2 kaynak al (ceza sistemli)'
 };
 
 interface ResourcePanelProps {
@@ -49,7 +67,7 @@ export function ResourcePanel({ resources, devCards, onPlayCard, isMyTurn }: Res
       {/* KAYNAKLAR */}
       <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-2xl shadow-2xl flex gap-4 h-24 items-center">
         {Object.values(ResourceType).map(type => (
-          <div key={type} className="flex flex-col items-center min-w-[50px]">
+          <div key={type} className="flex flex-col items-center min-w-[50px]" title={`${RESOURCE_NAMES[type]}: ${resources[type]} adet`}>
             <div className="text-2xl mb-1">{RESOURCE_ICONS[type]}</div>
             <div className={`font-black text-lg ${type === ResourceType.GOLD ? 'text-yellow-400' : 'text-white'}`}>
               {resources[type]}
@@ -78,6 +96,7 @@ export function ResourcePanel({ resources, devCards, onPlayCard, isMyTurn }: Res
                 <button
                   onClick={() => onPlayCard(type)}
                   className="bg-green-500 hover:bg-green-400 text-white text-[10px] font-bold py-1 px-2 rounded shadow transition-colors mt-1"
+                  title={CARD_TOOLTIPS[type] || 'Kartı kullan'}
                 >
                   KULLAN
                 </button>

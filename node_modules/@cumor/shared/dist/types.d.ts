@@ -90,6 +90,8 @@ export interface GameState {
         playerId: string;
         roll: number | null;
     }[];
+    freeRoadsRemaining: number;
+    traderPicksRemaining: number;
 }
 export interface RoomInfo {
     id: string;
@@ -107,9 +109,12 @@ export interface TradeOffer {
     acceptors: string[];
 }
 export declare enum DevCardType {
-    MERCENARY = "Paral\u0131 Asker",// Hırsızı taşır
-    SABOTAGE = "Sabotaj",// Yol yıkar
-    CARTEL = "Kartel",// Tekelcilik (Ambargo)
-    INSURANCE = "Yol Sigortas\u0131",// Sabotajı engeller
-    VICTORY_POINT = "Zafer Puan\u0131"
+    MERCENARY = "Vergi Memuru",// Hırsızı taşır + Ordu büyütür
+    SABOTAGE = "Sabotaj",// Rakip yol yıkar, enkaz bırakır
+    CARTEL = "Kartel",// Tüm kaynaklar sana gelir (1 tur)
+    INSURANCE = "Yol Sigortas\u0131",// Sabotajı otomatik engeller
+    VICTORY_POINT = "Zafer Puan\u0131",// +1 Puan (oynanmaz, otomatik sayılır)
+    ENGINEER = "M\u00FChendis",// YENİ: Ücretsiz 2 yol yapma hakkı
+    TRADER = "T\u00FCccar",// YENİ: Bankadan istediğin 3 kaynağı bedava al
+    MERCATOR = "Mercator"
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { HexBoard } from './components/HexBoard';
 import { Lobby } from './components/Lobby';
-import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType, hexToPixel, getHexCorners } from '@cumor/shared';
+import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType, DevCardType, hexToPixel, getHexCorners } from '@cumor/shared';
 import { io, Socket } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify';
 import { ResourcePanel } from './components/ResourcePanel';
@@ -37,6 +37,16 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false); // CHAT STATE
   const [highlightNumber, setHighlightNumber] = useState<number | null>(null); // ZAR SONUCU (Tile Highlight İçin)
 
+  // YENİ: Mercator kartı kaynak seçim modalı
+  const [showMercatorModal, setShowMercatorModal] = useState(false);
+  // YENİ: Tüccar kartı kaynak seçim modalı
+  const [showTraderModal, setShowTraderModal] = useState(false);
+  // YENİ: Admin panel durumu
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  // YENİ: Ücretsiz yol ve tüccar kalan hakkı
+  const [freeRoadsRemaining, setFreeRoadsRemaining] = useState(0);
+  const [traderPicksRemaining, setTraderPicksRemaining] = useState(0);
+
   useEffect(() => {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const socketUrl = isLocal ? 'http://localhost:3001' : 'https://cumorserver-production.up.railway.app';
@@ -65,6 +75,9 @@ function App() {
       setLargestArmyPlayerId((gameState as any).largestArmyPlayerId || null);
       setActiveCartelPlayerId((gameState as any).activeCartelPlayerId || null);
       setStartRolls((gameState as any).startRolls || []);
+      // YENİ: Kart fazları senkronize et
+      setFreeRoadsRemaining((gameState as any).freeRoadsRemaining || 0);
+      setTraderPicksRemaining((gameState as any).traderPicksRemaining || 0);
     });
     socket.on('dice_result', (data: { die1: number, die2: number, total: number }) => {
       setHasRolled(true);
@@ -150,8 +163,8 @@ function App() {
         return;
       }
 
-      // İnşaat Modu
-      if (turnSubPhase === 'road') {
+      // İnşaat Modu (veya free_road modu)
+      if (turnSubPhase === 'road' || (turnSubPhase as any) === 'free_road') {
         socket.emit('build_road', { q, r, edgeIndex: i });
       }
       // Sabotaj Modu
@@ -169,7 +182,12 @@ function App() {
 
   const handleBuyCard = () => socket.emit('buy_card');
 
+  // KART OYNAMA: Mercator için önce modal aç, diğerleri direkt oyna
   const handlePlayCard = (cardType: any) => {
+    if (cardType === DevCardType.MERCATOR || cardType === 'Mercator') {
+      setShowMercatorModal(true); // Mercator modali aç (kaynak seçimi için)
+      return;
+    }
     socket.emit('play_card', { cardType });
   };
 
@@ -191,44 +209,87 @@ function App() {
 
   const activePlayer = players.find(p => p.id === activePlayerId);
   const isMyTurn = activePlayerId === myId;
+  // ADMİN KONTROLÜ: Belirli nick ile giriş yapan + host olan kullanıcı
+  const myPlayer = players.find(p => p.id === myId);
+  const isAdmin = myId === hostId && myPlayer?.name?.toLowerCase().trim() === 'zodleenar';
 
   return (
     <div className="h-screen w-screen bg-[#0f172a] text-white flex flex-col overflow-hidden font-sans">
       <ToastContainer position="top-center" theme="dark" />
-      <header className="h-16 bg-slate-800 border-b border-slate-600 flex items-center justify-between px-6 z-20 shrink-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-cyan-400 tracking-wider">CUMOR</h1>
+      <header className="h-14 bg-slate-800/95 border-b border-slate-600 flex items-center px-4 z-20 shrink-0 gap-3">
+        {/* SOL: Logo + Durum */}
+        <div className="flex items-center gap-2 shrink-0">
+          <h1 className="text-xl font-bold text-cyan-400 tracking-wider">CUMOR</h1>
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          {isInGame && (
+            <>
+              <span className="text-gray-500 text-xs">|</span>
+              <span className="text-gray-400 text-xs">{gameStatus}</span>
+              {gameStatus === GameStatus.LOBBY && myId === hostId && players.length > 1 && (
+                <button onClick={handleStartGame} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-xs font-bold ml-1">
+                  BAŞLAT 🚀
+                </button>
+              )}
+            </>
+          )}
         </div>
+
+        {/* ORTA: Oyuncu Skor Tablosu */}
         {isInGame && (
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
-            <div className="bg-slate-700 px-4 py-2 rounded-lg flex items-center gap-3">
-              <span className="text-gray-400 text-sm">Durum:</span>
-              <span className="text-white font-semibold">{gameStatus}</span>
-            </div>
-            {gameStatus === GameStatus.LOBBY && myId === hostId && players.length > 1 && (
-              <button onClick={handleStartGame} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
-                BAŞLAT 🚀
-              </button>
-            )}
+          <div className="flex-1 flex items-center justify-center gap-1.5 overflow-x-auto">
+            {players.map(p => {
+              const isActive = activePlayerId === p.id;
+              const isMe = p.id === myId;
+              const hasLongestRoad = longestRoadPlayerId === p.id;
+              const hasLargestArmy = largestArmyPlayerId === p.id;
+              return (
+                <div key={p.id}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${isActive
+                      ? 'bg-yellow-500/20 border border-yellow-400 text-white shadow-[0_0_8px_rgba(234,179,8,0.3)]'
+                      : 'bg-slate-700/40 border border-slate-600/50 text-gray-400'
+                    } ${isMe ? 'ring-1 ring-cyan-500/50' : ''}`}
+                  title={`${p.name} - ${p.victoryPoints} VP`}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                  <span className="font-semibold truncate max-w-[60px]">{p.name}</span>
+                  <span className="text-yellow-400 font-bold">{p.victoryPoints}</span>
+                  {hasLongestRoad && <span title="En Uzun Yol (+2 VP)" className="text-[10px]">🛤️</span>}
+                  {hasLargestArmy && <span title="En Güçlü Ordu (+2 VP)" className="text-[10px]">⚔️</span>}
+                  {isActive && <span className="text-[9px] text-yellow-300 animate-pulse">●</span>}
+                  {/* Ban butonu - host görür, kendisi hariç */}
+                  {myId === hostId && !isMe && (
+                    <button
+                      onClick={() => { if (confirm(`${p.name} oyuncusunu odadan atmak istiyor musunuz?`)) socket.emit('ban_player', { targetId: p.id }); }}
+                      className="text-red-500 hover:text-red-300 text-[10px] ml-0.5" title="Oyuncuyu At"
+                    >
+                      🚫
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
+
+        {/* SAĞ: Sıradaki + Admin */}
         {isInGame && (
-          <div className="flex items-center gap-4">
-            {/* BEN KİMİM? */}
-            <div className="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600">
-              <span className="text-xs text-gray-400 uppercase">SEN:</span>
-              <span className="font-bold text-cyan-400">{players.find(p => p.id === myId)?.name}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 bg-slate-700/50 px-2 py-1 rounded text-xs border border-slate-600">
+              <span className="text-gray-500">Sıra:</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: activePlayer?.color || 'gray' }} />
+              <span className="font-semibold text-white">{activePlayer?.name || '...'}</span>
             </div>
 
-            {/* SIRADAKİ OYUNCU */}
-            <div className="flex items-center gap-3 bg-slate-700 px-4 py-2 rounded-lg border border-slate-600">
-              <div className="text-right">
-                <div className="text-xs text-gray-400">Sıradaki</div>
-                <div className="font-semibold">{activePlayer?.name || "..."}</div>
-              </div>
-              <div className="w-6 h-6 rounded border border-white/20 shadow-sm" style={{ backgroundColor: activePlayer?.color || 'gray' }}></div>
-            </div>
+            {/* Admin butonu */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowAdminPanel(!showAdminPanel)}
+                className="bg-red-700 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold"
+                title="Admin Paneli"
+              >
+                ⚙️
+              </button>
+            )}
           </div>
         )}
       </header>
@@ -272,36 +333,7 @@ function App() {
               </div>
             )}
 
-            {/* OYUNCU LİSTESİ */}
-            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10 pointer-events-none">
-              {players.map(p => {
-                const isActive = activePlayerId === p.id;
-                const isMe = p.id === myId;
-                return (
-                  <div key={p.id} className={`flex items-center gap-2 px-3 py-2 rounded-md border shadow-lg transition-all ${isActive ? 'bg-slate-800 border-yellow-400 text-white scale-105' : 'bg-slate-900/60 border-slate-700 text-gray-400'}`}>
-                    <div className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: p.color }} />
-                    <div className="flex flex-col leading-tight">
-                      <span className="font-bold text-sm">{p.name} {isMe && '(Sen)'}</span>
-                      <span className="text-xs text-yellow-500 font-mono">{p.victoryPoints} VP</span>
-                    </div>
-                    {isActive && (
-                      <div className="ml-2 bg-yellow-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse">
-                        {isMe ? 'SIRA SENDE!' : 'DÜŞÜNÜYOR...'}
-                      </div>
-                    )}
-                    {/* BAN BUTONU - Sadece host görür, kendisi değil */}
-                    {myId === hostId && !isMe && (
-                      <button
-                        onClick={() => { if (confirm(`${p.name} oyuncusunu odadan atmak istiyor musunuz?`)) socket.emit('ban_player', { targetId: p.id }); }}
-                        className="ml-1 text-red-500 hover:text-red-300 text-xs font-bold pointer-events-auto" title="Oyuncuyu At"
-                      >
-                        🚫
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {/* (Eski oyuncu listesi kaldırıldı - artık header'da gösteriliyor) */}
 
             {/* === BAŞLANGIÇ ZARI PANELİ (BASİT & ŞEFFAF) === */}
             {(gameStatus === GameStatus.ROLLING_FOR_START || gameStatus === 'rolling_for_start' as GameStatus) && (
@@ -408,7 +440,7 @@ function App() {
             )}
 
             {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && !hasRolled && (
-              <div className="absolute right-10 bottom-10 z-50">
+              <div className="absolute right-119 bottom-10 z-50">
                 <button onClick={handleRollDice} className="bg-red-600 hover:bg-red-500 text-white w-24 h-24 rounded-full font-black text-xl shadow-[0_0_30px_rgba(220,38,38,0.6)] border-4 border-slate-900 transition-transform active:scale-90 flex flex-col items-center justify-center gap-1">
                   <span>🎲</span><span>ZAR AT</span>
                 </button>
@@ -440,10 +472,10 @@ function App() {
                 myId={myId || ''}
                 players={players}
                 buildings={buildings}
-                tiles={tiles} // YENİ: Konum bazlı karaborsa için
-                // YENİ PROPS
+                tiles={tiles}
                 onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
                 canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 15}
+                isMyTurn={isMyTurn} // YENİ: Sıra kontrolü için
               />
             )}
 
@@ -489,6 +521,105 @@ function App() {
               isOpen={isChatOpen}
               onToggle={() => setIsChatOpen(!isChatOpen)}
             />
+
+            {/* ÜCRETSIZ YOL BANNERI (Mühendis kartı) */}
+            {isMyTurn && (turnSubPhase as any) === 'free_road' && (
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+                <div className="bg-green-600 text-white px-6 py-4 rounded-full font-black shadow-2xl border-4 border-slate-900 text-xl flex items-center gap-2">
+                  <span>🛣️</span> ÜCRETSIZ YOL KOY! (Kalan: {freeRoadsRemaining})
+                </div>
+              </div>
+            )}
+
+            {/* TÜCCAR MODALİ: Bankadan kaynak seç */}
+            {isMyTurn && ((turnSubPhase as any) === 'trader_pick' || showTraderModal) && (
+              <div className="absolute inset-0 bg-black/60 z-[70] flex items-center justify-center backdrop-blur-sm">
+                <div className="bg-slate-800 p-8 rounded-2xl border-2 border-green-500 shadow-2xl text-center">
+                  <h2 className="text-2xl font-black text-white mb-2">📦 Tüccar - Kaynak Seç</h2>
+                  <p className="text-gray-400 mb-4">Kalan seçim: {traderPicksRemaining}</p>
+                  <div className="grid grid-cols-5 gap-3">
+                    {[ResourceType.LUMBER, ResourceType.CONCRETE, ResourceType.TEXTILE, ResourceType.FOOD, ResourceType.DIAMOND].map(res => (
+                      <button
+                        key={res}
+                        onClick={() => {
+                          socket.emit('trader_pick_resource', { resource: res });
+                          setShowTraderModal(false);
+                        }}
+                        className="bg-slate-700 hover:bg-green-600 text-white p-4 rounded-xl font-bold transition-all border border-slate-600 hover:scale-105 flex flex-col items-center gap-1"
+                        title={`${res} al`}
+                      >
+                        <span className="text-2xl">{res === ResourceType.LUMBER ? '🌲' : res === ResourceType.CONCRETE ? '🧱' : res === ResourceType.TEXTILE ? '🐑' : res === ResourceType.FOOD ? '🌾' : '💎'}</span>
+                        <span className="text-xs">{res}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MERCATOR MODALİ: Kaynak türü seç */}
+            {showMercatorModal && (
+              <div className="absolute inset-0 bg-black/60 z-[70] flex items-center justify-center backdrop-blur-sm">
+                <div className="bg-slate-800 p-8 rounded-2xl border-2 border-purple-500 shadow-2xl text-center">
+                  <h2 className="text-2xl font-black text-white mb-2">🌍 Mercator - Kaynak Talep Et</h2>
+                  <p className="text-gray-400 mb-4">Her rakipten seçtiğin kaynaktan max 2 alırsın!</p>
+                  <div className="grid grid-cols-5 gap-3">
+                    {[ResourceType.LUMBER, ResourceType.CONCRETE, ResourceType.TEXTILE, ResourceType.FOOD, ResourceType.DIAMOND].map(res => (
+                      <button
+                        key={res}
+                        onClick={() => {
+                          socket.emit('play_card', { cardType: DevCardType.MERCATOR, targetResource: res });
+                          setShowMercatorModal(false);
+                        }}
+                        className="bg-slate-700 hover:bg-purple-600 text-white p-4 rounded-xl font-bold transition-all border border-slate-600 hover:scale-105 flex flex-col items-center gap-1"
+                        title={`${res} talep et`}
+                      >
+                        <span className="text-2xl">{res === ResourceType.LUMBER ? '🌲' : res === ResourceType.CONCRETE ? '🧱' : res === ResourceType.TEXTILE ? '🐑' : res === ResourceType.FOOD ? '🌾' : '💎'}</span>
+                        <span className="text-xs">{res}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setShowMercatorModal(false)} className="mt-4 text-gray-400 hover:text-white text-sm">İptal</button>
+                </div>
+              </div>
+            )}
+
+            {/* ADMİN PANELİ: Sadece admin görür */}
+            {showAdminPanel && isAdmin && (
+              <div className="absolute top-20 right-4 z-[80] bg-slate-800/95 p-6 rounded-xl border-2 border-red-500 shadow-2xl w-80 backdrop-blur-sm">
+                <h3 className="text-lg font-bold text-red-400 mb-4">⚙️ Admin Paneli</h3>
+                {players.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 mb-3 bg-slate-700/50 p-2 rounded-lg">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                    <span className="font-bold text-sm flex-1">{p.name}</span>
+                    <button
+                      onClick={() => {
+                        const res: any = {};
+                        res[ResourceType.LUMBER] = 5; res[ResourceType.CONCRETE] = 5;
+                        res[ResourceType.TEXTILE] = 5; res[ResourceType.FOOD] = 5;
+                        res[ResourceType.DIAMOND] = 5; res[ResourceType.GOLD] = 10;
+                        socket.emit('admin_give_resources', { targetId: p.id, resources: res });
+                      }}
+                      className="bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+                      title="Tüm kaynaklar +5, Altın +10"
+                    >
+                      +Kaynak
+                    </button>
+                    <button
+                      onClick={() => {
+                        const vp = prompt(`${p.name} için VP değeri:`, String(p.victoryPoints));
+                        if (vp !== null) socket.emit('admin_set_vp', { targetId: p.id, vp: parseInt(vp) || 0 });
+                      }}
+                      className="bg-yellow-700 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
+                      title="VP ayarla"
+                    >
+                      VP
+                    </button>
+                  </div>
+                ))}
+                <button onClick={() => setShowAdminPanel(false)} className="w-full mt-2 text-gray-400 hover:text-white text-sm">Kapat</button>
+              </div>
+            )}
 
           </>
         )}

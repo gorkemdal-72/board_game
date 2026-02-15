@@ -46,9 +46,12 @@ export var PlayerColor;
 })(PlayerColor || (PlayerColor = {}));
 export var DevCardType;
 (function (DevCardType) {
-    DevCardType["MERCENARY"] = "Paral\u0131 Asker";
+    DevCardType["MERCENARY"] = "Vergi Memuru";
     DevCardType["SABOTAGE"] = "Sabotaj";
     DevCardType["CARTEL"] = "Kartel";
     DevCardType["INSURANCE"] = "Yol Sigortas\u0131";
-    DevCardType["VICTORY_POINT"] = "Zafer Puan\u0131"; // +1 Puan
+    DevCardType["VICTORY_POINT"] = "Zafer Puan\u0131";
+    DevCardType["ENGINEER"] = "M\u00FChendis";
+    DevCardType["TRADER"] = "T\u00FCccar";
+    DevCardType["MERCATOR"] = "Mercator"; // YENİ: Bir kaynak türü söyle, rakiplerden max 2 al (yoksa altın ceza)
 })(DevCardType || (DevCardType = {}));

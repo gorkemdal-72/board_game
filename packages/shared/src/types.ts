@@ -97,6 +97,10 @@ export interface GameState {
   largestArmyPlayerId: string | null;   // En Güçlü Ordu sahibi (+2 VP)
   activeCartelPlayerId: string | null;  // Kartel aktif mi? Kimde?
   startRolls: { playerId: string, roll: number | null }[]; // Başlangıç zarları
+
+  // YENİ: Gelişim Kartı Özel Fazları
+  freeRoadsRemaining: number;           // Mühendis kartı: Kalan ücretsiz yol hakkı
+  traderPicksRemaining: number;         // Tüccar kartı: Kalan kaynak seçme hakkı
 }
 
 export interface RoomInfo {
@@ -118,10 +122,13 @@ export interface TradeOffer {
 }
 
 export enum DevCardType {
-  MERCENARY = 'Paralı Asker', // Hırsızı taşır
-  SABOTAGE = 'Sabotaj',       // Yol yıkar
-  CARTEL = 'Kartel',          // Tekelcilik (Ambargo)
-  INSURANCE = 'Yol Sigortası',// Sabotajı engeller
-  VICTORY_POINT = 'Zafer Puanı' // +1 Puan
+  MERCENARY = 'Vergi Memuru', // Hırsızı taşır + Ordu büyütür
+  SABOTAGE = 'Sabotaj',       // Rakip yol yıkar, enkaz bırakır
+  CARTEL = 'Kartel',          // Tüm kaynaklar sana gelir (1 tur)
+  INSURANCE = 'Yol Sigortası',// Sabotajı otomatik engeller
+  VICTORY_POINT = 'Zafer Puanı', // +1 Puan (oynanmaz, otomatik sayılır)
+  ENGINEER = 'Mühendis',      // YENİ: Ücretsiz 2 yol yapma hakkı
+  TRADER = 'Tüccar',          // YENİ: Bankadan istediğin 3 kaynağı bedava al
+  MERCATOR = 'Mercator'       // YENİ: Bir kaynak türü söyle, rakiplerden max 2 al (yoksa altın ceza)
 }
 
