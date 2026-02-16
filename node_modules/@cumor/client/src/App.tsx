@@ -43,6 +43,8 @@ function App() {
   const [showTraderModal, setShowTraderModal] = useState(false);
   // YENİ: Admin panel durumu
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  // YENİ: Admin kilidi - Ctrl+Alt+G ile açılır
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
   // YENİ: Ücretsiz yol ve tüccar kalan hakkı
   const [freeRoadsRemaining, setFreeRoadsRemaining] = useState(0);
   const [traderPicksRemaining, setTraderPicksRemaining] = useState(0);
@@ -113,6 +115,28 @@ function App() {
     });
     return () => { socket.disconnect(); };
   }, []);
+
+  // Ctrl+Alt+G: Admin panelini aç/kapa
+  useEffect(() => {
+    const handleAdminHotkey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.altKey && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        setAdminUnlocked(prev => {
+          if (!prev) {
+            // Açılırken panel de göster
+            setShowAdminPanel(true);
+          } else {
+            // Kapatırken panel de kapat
+            setShowAdminPanel(false);
+          }
+          return !prev;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleAdminHotkey);
+    return () => window.removeEventListener('keydown', handleAdminHotkey);
+  }, []);
+
 
   useEffect(() => { if (activePlayerId === myId) setHasRolled(false); }, [activePlayerId, myId]);
 
@@ -215,7 +239,7 @@ function App() {
   const isMyTurn = activePlayerId === myId;
   // ADMİN KONTROLÜ: Host + zodleenar nick'i olan oyuncu admin
   const myPlayer = players.find(p => p.id === myId);
-  const isAdmin = myId === hostId && myPlayer?.name?.toLowerCase().trim() === 'zodleenar';
+  const isAdmin = myId === hostId && myPlayer?.name?.toLowerCase().trim() === 'zodleenar' && adminUnlocked;
 
   return (
     <div className="h-screen w-screen bg-[#0f172a] text-white flex flex-col overflow-hidden font-sans">
@@ -284,15 +308,18 @@ function App() {
               <span className="font-semibold text-white">{activePlayer?.name || '...'}</span>
             </div>
 
-            {/* Admin butonu */}
+            {/* Admin butonu + kilit göstergesi */}
             {isAdmin && (
-              <button
-                onClick={() => setShowAdminPanel(!showAdminPanel)}
-                className="bg-red-700 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold"
-                title="Admin Paneli"
-              >
-                ⚙️
-              </button>
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Admin Modu Aktif (Ctrl+Alt+G)" />
+                <button
+                  onClick={() => setShowAdminPanel(!showAdminPanel)}
+                  className="bg-red-700 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold"
+                  title="Admin Paneli (Ctrl+Alt+G ile aç/kapa)"
+                >
+                  ⚙️
+                </button>
+              </>
             )}
           </div>
         )}
