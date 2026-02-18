@@ -148,6 +148,15 @@ function App() {
       setIsInGame(false);
       setGameStatus(GameStatus.LOBBY);
     });
+    socket.on('room_closed', (data: { message: string }) => {
+      toast.info(data.message);
+      setIsInGame(false);
+      setGameStatus(GameStatus.LOBBY);
+      setActivePlayerId(null);
+      setTiles([]);
+      setBuildings([]);
+      setPlayers([]);
+    });
   }, []);
 
   // İlk yüklemede socket bağla
@@ -377,8 +386,8 @@ function App() {
               <span className="font-semibold text-white">{activePlayer?.name || '...'}</span>
             </div>
 
-            {/* Admin butonu + kilit göstergesi */}
-            {isAdmin && (
+            {/* Admin butonu + kilit göstergesi (Sadece panel AÇIKKEN görünür) */}
+            {isAdmin && showAdminPanel && (
               <>
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Admin Modu Aktif (Ctrl+Alt+G)" />
                 <button
@@ -389,6 +398,17 @@ function App() {
                   ⚙️
                 </button>
               </>
+            )}
+
+            {/* Odayı Kapat Butonu (Sadece Host) */}
+            {myId === hostId && (
+              <button
+                onClick={() => { if (confirm("Odayı kapatmak istediğinize emin misiniz? Herkes lobiyie dönecek.")) socket.emit('close_room'); }}
+                className="bg-red-900/80 hover:bg-red-800 text-white px-2 py-1 rounded text-xs border border-red-700 ml-2"
+                title="Odayı Kapat"
+              >
+                🏁 Kapat
+              </button>
             )}
           </div>
         )}

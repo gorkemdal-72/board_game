@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { RoomManager } from './game/RoomManager.js';
-import { PlayerColor } from '@cumor/shared';
+import { PlayerColor, GameStatus } from '@cumor/shared';
 import { AuthManager } from './auth/AuthManager.js';
 import { HistoryManager } from './auth/HistoryManager.js';
 
@@ -194,13 +194,66 @@ io.on('connection', async (socket) => {
       const room = rooms.get(data.roomId);
       if (!room) throw new Error("Oda bulunamadı!");
       if (room.isBanned(socket.id)) throw new Error("Bu odadan atıldınız!");
+
+      // RECONNECT KONTROLÜ: Kullanıcı zaten odada mı? (authInfo.userId ile kontrol)
+      if (authInfo && authInfo.userId) {
+        const existingPlayer = room.findPlayerByUserId(authInfo.userId);
+        if (existingPlayer) {
+          // Evet, kullanıcı zaten var -> Reconnect yap
+          const reconnected = room.reconnectPlayer(authInfo.userId, socket.id);
+          if (reconnected) {
+            playerRoomMap.set(socket.id, data.roomId);
+            socket.join(data.roomId);
+            socket.emit('join_success');
+            socket.emit('reconnected', { roomId: data.roomId });
+            io.to(data.roomId).emit('game_state_update', room.getGameState());
+            io.to(data.roomId).emit('system_alert', { message: `${existingPlayer.name} geri bağlandı! 🔄` });
+            return; // Normal join işlemini atla
+          }
+        }
+      }
+
       if (room.password && room.password !== data.password) throw new Error("Yanlış şifre!");
+
+      // Normal Join
       room.addPlayer(socket.id, data.playerName, data.playerColor, authInfo?.userId);
       playerRoomMap.set(socket.id, data.roomId);
       socket.join(data.roomId);
       socket.emit('join_success');
       io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
       io.to(data.roomId).emit('game_state_update', room.getGameState());
+    } catch (e: any) { socket.emit('error_message', { message: e.message }); }
+  });
+
+  // ODAYI KAPAT (Sadece Host)
+  socket.on('close_room', () => {
+    try {
+      const roomId = playerRoomMap.get(socket.id);
+      if (!roomId) return;
+      const room = rooms.get(roomId);
+      if (room) {
+        if (room.getGameState().hostId !== socket.id) throw new Error("Sadece oda sahibi odayı kapatabilir!");
+
+        // Odadaki herkese bildir ve lobiye at
+        io.to(roomId).emit('room_closed', { message: "Oda sahibi odayı kapattı." });
+        io.to(roomId).emit('game_state_update', { ...room.getGameState(), status: GameStatus.LOBBY }); // Garanti olsun
+
+        // Socket odalarından çıkar (istemci tarafı da sayfayı yenilemeli veya lobiye dönmeli)
+        const socketsInRoom = io.sockets.adapter.rooms.get(roomId);
+        if (socketsInRoom) {
+          for (const sId of socketsInRoom) {
+            const s = io.sockets.sockets.get(sId);
+            if (s) {
+              s.leave(roomId);
+              playerRoomMap.delete(sId);
+            }
+          }
+        }
+
+        rooms.delete(roomId);
+        io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+        console.log(`🗑️ Oda kapatıldı: ${roomId}`);
+      }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
