@@ -4,14 +4,22 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { RoomManager } from './game/RoomManager.js';
 import { PlayerColor } from '@cumor/shared';
+import { AuthManager } from './auth/AuthManager.js';
+import { HistoryManager } from './auth/HistoryManager.js';
 
+// Firebase başlat (import sırası önemli — ilk bu çalışmalı)
+import './firebase.js';
 
 const app = express();
 app.set('trust proxy', 1); // Railway proxy desteği (önemli)
 app.use(cors());
+app.use(express.json()); // REST body parsing
 
 console.log('🏁 Server process starting...');
 console.log('📝 ENV PORT value:', process.env.PORT);
+
+const authManager = new AuthManager();
+const historyManager = new HistoryManager();
 
 app.get('/', (req, res) => {
   res.send('Server is running! 🚀');
@@ -20,6 +28,77 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
+
+// ======== REST API: HESAP SİSTEMİ ========
+
+// KAYIT
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const result = await authManager.register(username, password);
+    res.json({ success: true, ...result });
+  } catch (e: any) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// GİRİŞ
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const result = await authManager.login(username, password);
+    res.json({ success: true, ...result });
+  } catch (e: any) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// PROFİL
+app.get('/api/profile/:userId', async (req, res) => {
+  try {
+    const profile = await authManager.getUserProfile(req.params.userId);
+    if (!profile) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
+    res.json({ success: true, profile });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// OYUN GEÇMİŞİ
+app.get('/api/history/:userId', async (req, res) => {
+  try {
+    const history = await historyManager.getUserHistory(req.params.userId);
+    res.json({ success: true, history });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ADMİN YAP/KALDIR
+app.post('/api/set-admin', async (req, res) => {
+  try {
+    const { token, targetUserId, makeAdmin } = req.body;
+    const auth = await authManager.verifyToken(token);
+    if (!auth) return res.status(401).json({ success: false, message: 'Geçersiz token' });
+    const msg = await authManager.setAdmin(auth.userId, targetUserId, makeAdmin);
+    res.json({ success: true, message: msg });
+  } catch (e: any) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// KULLANICI ARA (admin paneli için)
+app.get('/api/search-users', async (req, res) => {
+  try {
+    const query = (req.query.q as string) || '';
+    const users = await authManager.searchUsers(query);
+    res.json({ success: true, users });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ======== SOCKET.IO ========
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -31,19 +110,76 @@ const io = new Server(httpServer, {
 });
 
 const rooms = new Map<string, RoomManager>();
-const playerRoomMap = new Map<string, string>();
+const playerRoomMap = new Map<string, string>(); // socketId -> roomId
+const userSocketMap = new Map<string, string>();  // userId -> socketId
+const socketUserMap = new Map<string, { userId: string; isAdmin: boolean }>(); // socketId -> user info
 
+// Disconnect timeout'ları (5 dk sonra oyundan kaldır)
+const disconnectTimers = new Map<string, NodeJS.Timeout>(); // userId -> timer
 
-
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log(`🔌 Yeni bağlantı: ${socket.id}`);
+
+  // Token ile kullanıcı doğrulama
+  const token = socket.handshake.auth?.token as string;
+  let authInfo: { userId: string; isAdmin: boolean } | null = null;
+
+  if (token) {
+    try {
+      authInfo = await authManager.verifyToken(token);
+      if (authInfo) {
+        userSocketMap.set(authInfo.userId, socket.id);
+        socketUserMap.set(socket.id, authInfo);
+        console.log(`✅ Auth: ${authInfo.userId} (admin: ${authInfo.isAdmin})`);
+
+        // Reconnect timer varsa iptal et
+        const timer = disconnectTimers.get(authInfo.userId);
+        if (timer) {
+          clearTimeout(timer);
+          disconnectTimers.delete(authInfo.userId);
+          console.log(`⏱️ Disconnect timer iptal: ${authInfo.userId}`);
+        }
+      }
+    } catch (e) {
+      console.error('Auth error:', e);
+    }
+  }
+
+  // Auth bilgisini client'a gönder
+  socket.emit('auth_info', authInfo ? { userId: authInfo.userId, isAdmin: authInfo.isAdmin } : null);
   socket.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+
+  // RECONNECT: Sayfa yenileme sonrası eski oyuna geri bağlan
+  socket.on('reconnect_to_game', async () => {
+    if (!authInfo) return socket.emit('error_message', { message: 'Giriş yapmalısınız!' });
+
+    // userId ile aktif oda bul
+    for (const [roomId, room] of rooms) {
+      const player = room.findPlayerByUserId(authInfo.userId);
+      if (player) {
+        // Eski socket'ten yeni socket'e geç
+        const reconnected = room.reconnectPlayer(authInfo.userId, socket.id);
+        if (reconnected) {
+          playerRoomMap.set(socket.id, roomId);
+          socket.join(roomId);
+          socket.emit('join_success');
+          socket.emit('reconnected', { roomId });
+          io.to(roomId).emit('game_state_update', room.getGameState());
+          io.to(roomId).emit('system_alert', { message: `${player.name} geri bağlandı! 🔄` });
+          console.log(`🔄 Reconnect başarılı: ${player.name} → oda ${roomId}`);
+          return;
+        }
+      }
+    }
+    // Oyun bulunamadıysa bildir
+    socket.emit('no_active_game');
+  });
 
   socket.on('create_room', (data) => {
     try {
       const roomId = Math.random().toString(36).substr(2, 9);
       const newRoom = new RoomManager(roomId, data.roomName, data.password);
-      newRoom.addPlayer(socket.id, data.playerName, data.playerColor);
+      newRoom.addPlayer(socket.id, data.playerName, data.playerColor, authInfo?.userId);
       rooms.set(roomId, newRoom);
       playerRoomMap.set(socket.id, roomId);
       socket.join(roomId);
@@ -59,7 +195,7 @@ io.on('connection', (socket) => {
       if (!room) throw new Error("Oda bulunamadı!");
       if (room.isBanned(socket.id)) throw new Error("Bu odadan atıldınız!");
       if (room.password && room.password !== data.password) throw new Error("Yanlış şifre!");
-      room.addPlayer(socket.id, data.playerName, data.playerColor);
+      room.addPlayer(socket.id, data.playerName, data.playerColor, authInfo?.userId);
       playerRoomMap.set(socket.id, data.roomId);
       socket.join(data.roomId);
       socket.emit('join_success');
@@ -107,17 +243,11 @@ io.on('connection', (socket) => {
       if (!roomId) return;
       const room = rooms.get(roomId);
       if (room) {
-        // Hırsızı taşı ve potansiyel kurbanları al
         const victims = room.moveRobber(socket.id, coords);
-
         io.to(roomId).emit('game_state_update', room.getGameState());
-
-        // Kurban yoksa işlemi bitir
         if (victims.length === 0) {
           io.to(roomId).emit('system_alert', { message: "Vergi Memuru yerleşti ama ceza kesecek kimse yok." });
-          // Tur fazını düzeltmek için backend'de küçük bir method gerekebilir ama şimdilik client yönetir
         } else {
-          // Odaya değil, SADECE zarı atan kişiye kurban listesini gönder
           socket.emit('robber_victims', { victims });
         }
       }
@@ -134,18 +264,8 @@ io.on('connection', (socket) => {
       const room = rooms.get(roomId);
       if (room) {
         const result = room.robPlayer(socket.id, data.victimId);
-
         io.to(roomId).emit('game_state_update', room.getGameState());
-
-        // ÖZEL BİLDİRİMLER
-        // 1. Hırsıza ne çaldığını söyle
         socket.emit('system_alert', { message: `Başarılı! ${result.victimName}'den ${result.stolenMessage} el koydun.` });
-
-        // 2. Kurbana neyinin gittiğini söyle (Private Message)
-        // Bunu yapmak için kurbanın socket id'sini bulmamız lazım ama şimdilik basitçe broadcast yapalım ya da:
-        // io.to(victimSocketId).emit(...) (Bunun için player map lazım, şimdilik genel log atalım)
-
-        // 3. Herkese olay özeti
         socket.broadcast.to(roomId).emit('system_alert', { message: `${result.thiefName}, Vergi Memuru ile ${result.victimName} oyuncusuna ${result.stolenMessage} ceza kesti!` });
       }
     } catch (e: any) {
@@ -166,20 +286,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  // KART OYNAMA: Gelişim kartı kullanma (Mercator için targetResource parametresi eklendi)
+  // KART OYNAMA
   socket.on('play_card', (data: { cardType: any, targetResource?: any }) => {
     try {
       const roomId = playerRoomMap.get(socket.id);
       if (!roomId) return;
       const room = rooms.get(roomId);
       if (room) {
-        // Mercator kartı için targetResource parametresini de gönder
         const message = room.playDevelopmentCard(socket.id, data.cardType, data.targetResource);
         io.to(roomId).emit('game_state_update', room.getGameState());
-
-        // İşlem başarılıysa bildirim gönder
         if (message) {
-          socket.emit('system_alert', { message }); // Oynayana
+          socket.emit('system_alert', { message });
           socket.broadcast.to(roomId).emit('system_alert', { message: "Bir oyuncu Gelişim Kartı oynadı!" });
         }
       }
@@ -244,7 +361,7 @@ io.on('connection', (socket) => {
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
-  // --- TİCARET HANDLERS (YENİ) ---
+  // --- TİCARET HANDLERS ---
   socket.on('trade_with_bank', (data) => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
@@ -274,20 +391,60 @@ io.on('connection', (socket) => {
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
+  // DISCONNECT: Oyundan atma yerine "disconnected" işaretle
   socket.on('disconnect', () => {
     const roomId = playerRoomMap.get(socket.id);
+    const userInfo = socketUserMap.get(socket.id);
+
     if (roomId) {
       const room = rooms.get(roomId);
       if (room) {
-        room.removePlayer(socket.id);
-        if (room.isEmpty()) rooms.delete(roomId);
-        else {
+        const wasRemoved = room.disconnectPlayer(socket.id);
+
+        if (wasRemoved) {
+          // Lobide: normal sil
+          if (room.isEmpty()) rooms.delete(roomId);
+          else {
+            io.to(roomId).emit('game_state_update', room.getGameState());
+            io.to(roomId).emit('system_alert', { message: "Bir oyuncu ayrıldı." });
+          }
+        } else {
+          // Oyunda: 5 dk sonra kaldır
           io.to(roomId).emit('game_state_update', room.getGameState());
-          io.to(roomId).emit('system_alert', { message: "Bir oyuncu ayrıldı." });
+          io.to(roomId).emit('system_alert', { message: "Bir oyuncunun bağlantısı koptu. 5 dk içinde dönmezse atılacak. ⏱️" });
+
+          if (userInfo) {
+            const timer = setTimeout(() => {
+              // 5 dk doldu, hâlâ dönmediyse sil
+              const currentRoom = rooms.get(roomId);
+              if (currentRoom) {
+                // userId ile oyuncuyu bul
+                const player = currentRoom.findPlayerByUserId(userInfo.userId);
+                if (player && (player as any).disconnected) {
+                  currentRoom.removePlayer(player.id);
+                  if (currentRoom.isEmpty()) rooms.delete(roomId);
+                  else {
+                    io.to(roomId).emit('game_state_update', currentRoom.getGameState());
+                    io.to(roomId).emit('system_alert', { message: `${player.name} bağlantı zaman aşımı nedeniyle oyundan çıkarıldı.` });
+                  }
+                  io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
+                }
+              }
+              disconnectTimers.delete(userInfo.userId);
+            }, 5 * 60 * 1000); // 5 dakika
+
+            disconnectTimers.set(userInfo.userId, timer);
+          }
         }
         io.emit('room_list_update', Array.from(rooms.values()).map(r => r.getRoomInfo()));
       }
       playerRoomMap.delete(socket.id);
+    }
+
+    // Cleanup socket maps
+    if (userInfo) {
+      socketUserMap.delete(socket.id);
+      // userSocketMap'ten silme — reconnect için userId mapping'i kalmalı
     }
   });
 
@@ -357,7 +514,7 @@ io.on('connection', (socket) => {
             senderId: player.id,
             senderName: player.name,
             text: data.text,
-            color: player.color, // Mesaj rengi oyuncu rengi olsun
+            color: player.color,
             timestamp: Date.now()
           });
         }
@@ -373,9 +530,7 @@ io.on('connection', (socket) => {
       const room = rooms.get(roomId);
       if (room) {
         const bannedName = room.banPlayer(socket.id, data.targetId);
-        // Atılan oyuncuya bildir
         io.to(data.targetId).emit('banned_from_room', { message: `Oda sahibi sizi odadan attı!` });
-        // Oyuncuyu odadan çıkar
         const targetSocket = io.sockets.sockets.get(data.targetId);
         if (targetSocket) {
           targetSocket.leave(roomId);
@@ -388,7 +543,7 @@ io.on('connection', (socket) => {
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
-  // TÜCCAR KARTI: Bankadan kaynak seçme (3 kez çağrılır)
+  // TÜCCAR KARTI: Bankadan kaynak seçme
   socket.on('trader_pick_resource', (data: { resource: any }) => {
     try {
       const roomId = playerRoomMap.get(socket.id);
@@ -402,13 +557,19 @@ io.on('connection', (socket) => {
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
-  // ADMİN: Kaynak ekleme (sadece host)
+  // ADMİN: Kaynak ekleme/silme — artık hesap bazlı admin kontrolü
   socket.on('admin_give_resources', (data: { targetId: string, resources: any }) => {
     try {
       const roomId = playerRoomMap.get(socket.id);
       if (!roomId) return;
       const room = rooms.get(roomId);
       if (room) {
+        // Admin yetkisi: hesap bazlı VEYA eski host kontrolü
+        const userInfo = socketUserMap.get(socket.id);
+        const isAccountAdmin = userInfo?.isAdmin || false;
+        const isHost = room.getGameState().hostId === socket.id;
+        if (!isAccountAdmin && !isHost) throw new Error("Admin yetkisi gerekli!");
+
         const msg = room.adminGiveResources(socket.id, data.targetId, data.resources);
         io.to(roomId).emit('game_state_update', room.getGameState());
         socket.emit('system_alert', { message: msg });
@@ -416,13 +577,18 @@ io.on('connection', (socket) => {
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 
-  // ADMİN: VP ayarlama (sadece host)
+  // ADMİN: VP ayarlama
   socket.on('admin_set_vp', (data: { targetId: string, vp: number }) => {
     try {
       const roomId = playerRoomMap.get(socket.id);
       if (!roomId) return;
       const room = rooms.get(roomId);
       if (room) {
+        const userInfo = socketUserMap.get(socket.id);
+        const isAccountAdmin = userInfo?.isAdmin || false;
+        const isHost = room.getGameState().hostId === socket.id;
+        if (!isAccountAdmin && !isHost) throw new Error("Admin yetkisi gerekli!");
+
         const msg = room.adminSetVP(socket.id, data.targetId, data.vp);
         io.to(roomId).emit('game_state_update', room.getGameState());
         socket.emit('system_alert', { message: msg });

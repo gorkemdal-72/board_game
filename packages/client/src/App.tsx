@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { HexBoard } from './components/HexBoard';
 import { Lobby } from './components/Lobby';
 import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType, DevCardType, hexToPixel, getHexCorners } from '@cumor/shared';
@@ -8,9 +8,15 @@ import { ResourcePanel } from './components/ResourcePanel';
 import { ActionPanel } from './components/ActionPanel';
 import { TradePanel } from './components/TradePanel';
 import { BuildCostPanel } from './components/BuildCostPanel';
-import { ChatPanel } from './components/ChatPanel'; // İMPORT EKLENDİ
+import { ChatPanel } from './components/ChatPanel';
+import { AuthScreen } from './components/AuthScreen';
+import { ProfilePanel } from './components/ProfilePanel';
 
 let socket: Socket;
+
+// Socket URL
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const socketUrl = isLocal ? 'http://localhost:3001' : 'https://cumorserver-production.up.railway.app';
 
 function App() {
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -41,27 +47,61 @@ function App() {
   const [showMercatorModal, setShowMercatorModal] = useState(false);
   // YENİ: Tüccar kartı kaynak seçim modalı
   const [showTraderModal, setShowTraderModal] = useState(false);
-  // YENİ: Admin panel durumu
+  // Admin panel durumu
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  // YENİ: Admin kilidi - Ctrl+Alt+G ile açılır
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
-  // YENİ: Ücretsiz yol ve tüccar kalan hakkı
+  // Ücretsiz yol ve tüccar kalan hakkı
   const [freeRoadsRemaining, setFreeRoadsRemaining] = useState(0);
   const [traderPicksRemaining, setTraderPicksRemaining] = useState(0);
-  // YENİ: Destede kalan kart sayısı ve admin kaynak verme miktarı
+  // Destede kalan kart sayısı ve admin kaynak verme miktarı
   const [devCardDeckCount, setDevCardDeckCount] = useState(0);
   const [adminResourceAmount, setAdminResourceAmount] = useState(5);
 
-  useEffect(() => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const socketUrl = isLocal ? 'http://localhost:3001' : 'https://cumorserver-production.up.railway.app';
+  // HESAP SİSTEMİ STATE'LERİ
+  const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('cumor_token'));
+  const [authUserId, setAuthUserId] = useState<string | null>(localStorage.getItem('cumor_userId'));
+  const [authUsername, setAuthUsername] = useState<string>(localStorage.getItem('cumor_username') || '');
+  const [authIsAdmin, setAuthIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+
+  // Socket bağlantısını başlat (token ile)
+  const connectSocket = useCallback((token: string | null) => {
+    if (socket) socket.disconnect();
+
     console.log('🔗 Bağlanıyor:', socketUrl);
+    socket = io(socketUrl, {
+      transports: ['polling', 'websocket'],
+      withCredentials: false,
+      auth: { token: token || undefined }
+    });
 
-    socket = io(socketUrl, { transports: ['polling', 'websocket'], withCredentials: false });
-
-    socket.on('connect', () => { setIsConnected(true); setMyId(socket.id || null); });
+    socket.on('connect', () => {
+      setIsConnected(true);
+      setMyId(socket.id || null);
+      // Token varsa reconnect dene
+      if (token) {
+        socket.emit('reconnect_to_game');
+      }
+    });
     socket.on('connect_error', (err) => console.error('❌ Connection', err));
     socket.on('disconnect', () => setIsConnected(false));
+
+    // Auth bilgisi sunucudan gelir
+    socket.on('auth_info', (info: { userId: string; isAdmin: boolean } | null) => {
+      if (info) {
+        setAuthIsAdmin(info.isAdmin);
+        setAuthChecked(true);
+      }
+    });
+
+    // Reconnect sonucu
+    socket.on('reconnected', (data: { roomId: string }) => {
+      console.log('🔄 Oyuna geri bağlanıldı:', data.roomId);
+      toast.success('Oyuna geri bağlandınız! 🔄');
+    });
+    socket.on('no_active_game', () => {
+      console.log('🔍 Aktif oyun bulunamadı');
+    });
 
     socket.on('room_list_update', setRooms);
 
@@ -80,27 +120,22 @@ function App() {
       setLargestArmyPlayerId((gameState as any).largestArmyPlayerId || null);
       setActiveCartelPlayerId((gameState as any).activeCartelPlayerId || null);
       setStartRolls((gameState as any).startRolls || []);
-      // YENİ: Kart fazları senkronize et
       setFreeRoadsRemaining((gameState as any).freeRoadsRemaining || 0);
       setTraderPicksRemaining((gameState as any).traderPicksRemaining || 0);
       setDevCardDeckCount((gameState as any).devCardDeckCount || 0);
     });
     socket.on('dice_result', (data: { die1: number, die2: number, total: number }) => {
       setHasRolled(true);
-      // GÖRSEL EFEKT: İlgili numaralı arazileri parlat
       setHighlightNumber(data.total);
-      setTimeout(() => setHighlightNumber(null), 3000); // 3 sn sonra sön
-
+      setTimeout(() => setHighlightNumber(null), 3000);
       toast.info(`🎲 Zar: ${data.total} (${data.die1}+${data.die2})`, { autoClose: 3000, theme: "dark" });
     });
 
     socket.on('robber_victims', (data: { victims: string[] }) => {
       if (data.victims.length === 1) {
-        // Tek kişi varsa direkt soy
         socket.emit('rob_player', { victimId: data.victims[0] });
         setTurnSubPhase('waiting');
       } else {
-        // Birden fazla kişi varsa listeyi state'e at (Modal açılır)
         setPossibleVictims(data.victims);
       }
     });
@@ -113,29 +148,53 @@ function App() {
       setIsInGame(false);
       setGameStatus(GameStatus.LOBBY);
     });
-    return () => { socket.disconnect(); };
   }, []);
 
-  // Ctrl+Alt+G: Admin panelini aç/kapa
+  // İlk yüklemede socket bağla
+  useEffect(() => {
+    if (authToken) {
+      connectSocket(authToken);
+    }
+    return () => { if (socket) socket.disconnect(); };
+  }, [authToken, connectSocket]);
+
+  // Auth handler
+  const handleAuth = (data: { token: string; userId: string; username: string; isAdmin: boolean }) => {
+    setAuthToken(data.token);
+    setAuthUserId(data.userId);
+    setAuthUsername(data.username);
+    setAuthIsAdmin(data.isAdmin);
+    setAuthChecked(true);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('cumor_token');
+    localStorage.removeItem('cumor_userId');
+    localStorage.removeItem('cumor_username');
+    setAuthToken(null);
+    setAuthUserId(null);
+    setAuthUsername('');
+    setAuthIsAdmin(false);
+    setAuthChecked(false);
+    setIsInGame(false);
+    setShowProfile(false);
+    if (socket) socket.disconnect();
+  };
+
+  // Ctrl+Alt+G: Admin panelini aç/kapa (admin ise)
   useEffect(() => {
     const handleAdminHotkey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.altKey && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault();
-        setAdminUnlocked(prev => {
-          if (!prev) {
-            // Açılırken panel de göster
-            setShowAdminPanel(true);
-          } else {
-            // Kapatırken panel de kapat
-            setShowAdminPanel(false);
-          }
-          return !prev;
-        });
+        if (authIsAdmin) {
+          setShowAdminPanel(prev => !prev);
+        }
       }
     };
     window.addEventListener('keydown', handleAdminHotkey);
     return () => window.removeEventListener('keydown', handleAdminHotkey);
-  }, []);
+  }, [authIsAdmin]);
 
 
   useEffect(() => { if (activePlayerId === myId) setHasRolled(false); }, [activePlayerId, myId]);
@@ -237,9 +296,19 @@ function App() {
 
   const activePlayer = players.find(p => p.id === activePlayerId);
   const isMyTurn = activePlayerId === myId;
-  // ADMİN KONTROLÜ: Host + zodleenar nick'i olan oyuncu admin
+  // ADMİN KONTROLÜ: Hesap bazlı admin kontrolü
   const myPlayer = players.find(p => p.id === myId);
-  const isAdmin = myId === hostId && myPlayer?.name?.toLowerCase().trim() === 'zodleenar' && adminUnlocked;
+  const isAdmin = authIsAdmin;
+
+  // Auth ekranı: token yoksa giriş/kayıt göster
+  if (!authToken) {
+    return (
+      <>
+        <AuthScreen socketUrl={socketUrl} onAuth={handleAuth} />
+        <ToastContainer position="top-center" />
+      </>
+    );
+  }
 
   return (
     <div className="h-screen w-screen bg-[#0f172a] text-white flex flex-col overflow-hidden font-sans">
@@ -273,8 +342,8 @@ function App() {
               return (
                 <div key={p.id}
                   className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${isActive
-                      ? 'bg-yellow-500/20 border border-yellow-400 text-white shadow-[0_0_8px_rgba(234,179,8,0.3)]'
-                      : 'bg-slate-700/40 border border-slate-600/50 text-gray-400'
+                    ? 'bg-yellow-500/20 border border-yellow-400 text-white shadow-[0_0_8px_rgba(234,179,8,0.3)]'
+                    : 'bg-slate-700/40 border border-slate-600/50 text-gray-400'
                     } ${isMe ? 'ring-1 ring-cyan-500/50' : ''}`}
                   title={`${p.name} - ${p.victoryPoints} VP`}
                 >
@@ -326,7 +395,33 @@ function App() {
       </header>
 
       <main className="flex-1 relative flex items-center justify-center bg-slate-900 overflow-hidden">
-        {!isInGame && <div className="z-10 w-full max-w-4xl px-4"><Lobby rooms={rooms} onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} /></div>}
+        {!isInGame && (
+          <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center gap-4">
+            {/* Profil Paneli */}
+            <div className="w-full flex justify-end">
+              <button
+                onClick={() => setShowProfile(!showProfile)}
+                className="flex items-center gap-2 bg-slate-700/80 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs transition-colors border border-slate-600"
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[10px] font-bold">
+                  {authUsername.charAt(0).toUpperCase()}
+                </div>
+                {authUsername}
+                {authIsAdmin && <span className="text-red-400 text-[10px]">⭐</span>}
+              </button>
+            </div>
+            {showProfile && (
+              <ProfilePanel
+                socketUrl={socketUrl}
+                userId={authUserId!}
+                username={authUsername}
+                isAdmin={authIsAdmin}
+                onLogout={handleLogout}
+              />
+            )}
+            <Lobby rooms={rooms} onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} />
+          </div>
+        )}
         {isInGame && (
           <>
             {/* BOARD - EN ALT KATMAN */}
@@ -615,7 +710,7 @@ function App() {
               </div>
             )}
 
-            {/* ADMİN PANELİ: Sadece zodleenar + host görür */}
+            {/* ADMİN PANELİ: Hesap bazlı admin */}
             {showAdminPanel && isAdmin && (
               <div className="absolute top-16 right-4 z-[80] bg-slate-800/95 p-5 rounded-xl border-2 border-red-500 shadow-2xl w-96 backdrop-blur-sm max-h-[85vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-3">
@@ -654,31 +749,58 @@ function App() {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {[ResourceType.LUMBER, ResourceType.CONCRETE, ResourceType.TEXTILE, ResourceType.FOOD, ResourceType.DIAMOND, ResourceType.GOLD].map(res => (
-                          <button key={res}
+                          <div key={res} className="flex flex-col gap-0.5">
+                            <button
+                              onClick={() => {
+                                const r: any = {}; r[res] = adminResourceAmount;
+                                socket.emit('admin_give_resources', { targetId: p.id, resources: r });
+                              }}
+                              className="bg-slate-600 hover:bg-green-600 text-white px-1.5 py-1 rounded text-[10px] transition-colors"
+                              title={`${res} +${adminResourceAmount} ver`}
+                            >
+                              {res === ResourceType.LUMBER ? '🌲' : res === ResourceType.CONCRETE ? '🧱' : res === ResourceType.TEXTILE ? '🐑' : res === ResourceType.FOOD ? '🌾' : res === ResourceType.DIAMOND ? '💎' : '🪙'}
+                              +{adminResourceAmount}
+                            </button>
+                            <button
+                              onClick={() => {
+                                const r: any = {}; r[res] = -adminResourceAmount;
+                                socket.emit('admin_give_resources', { targetId: p.id, resources: r });
+                              }}
+                              className="bg-slate-600 hover:bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] transition-colors"
+                              title={`${res} -${adminResourceAmount} sil`}
+                            >
+                              -{adminResourceAmount}
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex flex-col gap-0.5">
+                          <button
                             onClick={() => {
-                              const r: any = {}; r[res] = adminResourceAmount;
+                              const r: any = {};
+                              r[ResourceType.LUMBER] = adminResourceAmount; r[ResourceType.CONCRETE] = adminResourceAmount;
+                              r[ResourceType.TEXTILE] = adminResourceAmount; r[ResourceType.FOOD] = adminResourceAmount;
+                              r[ResourceType.DIAMOND] = adminResourceAmount; r[ResourceType.GOLD] = adminResourceAmount;
                               socket.emit('admin_give_resources', { targetId: p.id, resources: r });
                             }}
-                            className="bg-slate-600 hover:bg-green-600 text-white px-1.5 py-1 rounded text-[10px] transition-colors"
-                            title={`${res} +${adminResourceAmount} ver`}
+                            className="bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded text-[10px] font-bold"
+                            title={`Tüm kaynaklar +${adminResourceAmount}`}
                           >
-                            {res === ResourceType.LUMBER ? '🌲' : res === ResourceType.CONCRETE ? '🧱' : res === ResourceType.TEXTILE ? '🐑' : res === ResourceType.FOOD ? '🌾' : res === ResourceType.DIAMOND ? '💎' : '🪙'}
-                            +{adminResourceAmount}
+                            HEPSİ +
                           </button>
-                        ))}
-                        <button
-                          onClick={() => {
-                            const r: any = {};
-                            r[ResourceType.LUMBER] = adminResourceAmount; r[ResourceType.CONCRETE] = adminResourceAmount;
-                            r[ResourceType.TEXTILE] = adminResourceAmount; r[ResourceType.FOOD] = adminResourceAmount;
-                            r[ResourceType.DIAMOND] = adminResourceAmount; r[ResourceType.GOLD] = adminResourceAmount;
-                            socket.emit('admin_give_resources', { targetId: p.id, resources: r });
-                          }}
-                          className="bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded text-[10px] font-bold"
-                          title={`Tüm kaynaklar +${adminResourceAmount}`}
-                        >
-                          HEPSİ
-                        </button>
+                          <button
+                            onClick={() => {
+                              const r: any = {};
+                              r[ResourceType.LUMBER] = -adminResourceAmount; r[ResourceType.CONCRETE] = -adminResourceAmount;
+                              r[ResourceType.TEXTILE] = -adminResourceAmount; r[ResourceType.FOOD] = -adminResourceAmount;
+                              r[ResourceType.DIAMOND] = -adminResourceAmount; r[ResourceType.GOLD] = -adminResourceAmount;
+                              socket.emit('admin_give_resources', { targetId: p.id, resources: r });
+                            }}
+                            className="bg-red-700 hover:bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold"
+                            title={`Tüm kaynaklar -${adminResourceAmount}`}
+                          >
+                            HEPSİ -
+                          </button>
+                        </div>
                         <button
                           onClick={() => {
                             const vp = prompt(`${p.name} için VP değeri:`, String(p.victoryPoints));

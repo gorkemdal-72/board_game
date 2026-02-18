@@ -36,6 +36,7 @@ export enum GameStatus {
 
 export interface Player {
   id: string;
+  userId?: string;  // Hesap sistemi: Firestore kullanıcı ID'si
   name: string;
   color: PlayerColor;
   resources: Record<ResourceType, number>; // Kaynaklar + Altın
@@ -131,5 +132,24 @@ export enum DevCardType {
   ENGINEER = 'Mühendis',      // YENİ: Ücretsiz 2 yol yapma hakkı
   TRADER = 'Tüccar',          // YENİ: Bankadan istediğin 3 kaynağı bedava al
   MERCATOR = 'Mercator'       // YENİ: Bir kaynak türü söyle, rakiplerden max 2 al (yoksa altın ceza)
+}
+
+// HESAP SİSTEMİ TİPLERİ
+export interface UserAccount {
+  id: string;
+  username: string;
+  isAdmin: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+  createdAt: number;
+}
+
+export interface GameHistoryEntry {
+  id: string;
+  roomName: string;
+  date: number;
+  players: { userId: string; username: string; color: string; vp: number; isWinner: boolean }[];
+  winnerId: string;
+  winnerName: string;
 }
 

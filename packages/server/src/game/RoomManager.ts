@@ -122,7 +122,7 @@ export class RoomManager {
 
   // OYUNCU EKLEME: Lobide yeni oyuncu odaya katılır
   // Maksimum 5 kişi (5 kişide büyük harita oluşturulacak)
-  addPlayer(id: string, name: string, color: PlayerColor) {
+  addPlayer(id: string, name: string, color: PlayerColor, userId?: string) {
     if (this.room.status !== GameStatus.LOBBY) throw new Error("Oyun başladı, giriş yapılamaz!");
     if (this.room.players.length >= 5) throw new Error("Oda dolu! (Maks 5 kişi)");
     if (this.room.players.some(p => p.name.toLowerCase() === name.toLowerCase())) throw new Error("İsim alınmış.");
@@ -135,19 +135,89 @@ export class RoomManager {
       [DevCardType.CARTEL]: 0,
       [DevCardType.INSURANCE]: 0,
       [DevCardType.VICTORY_POINT]: 0,
-      [DevCardType.ENGINEER]: 0,   // YENİ: Mühendis kartı
-      [DevCardType.TRADER]: 0,     // YENİ: Tüccar kartı
-      [DevCardType.MERCATOR]: 0    // YENİ: Mercator kartı
+      [DevCardType.ENGINEER]: 0,
+      [DevCardType.TRADER]: 0,
+      [DevCardType.MERCATOR]: 0
     } as any;
 
     this.room.players.push({
-      id, name, color,
+      id, name, color, userId,
       resources: { [ResourceType.LUMBER]: 0, [ResourceType.CONCRETE]: 0, [ResourceType.TEXTILE]: 0, [ResourceType.FOOD]: 0, [ResourceType.DIAMOND]: 0, [ResourceType.GOLD]: 0 },
       devCards: { ...emptyCardHand },
       newDevCards: { ...emptyCardHand },
       victoryPoints: 0, longestRoad: 0, armySize: 0
     });
     if (!this.room.hostId) this.room.hostId = id;
+  }
+
+  // OYUNCU DISCONNECT: Oyun sırasında bağlantı koptuğunda silme, "disconnected" işaretle
+  disconnectPlayer(socketId: string): boolean {
+    const player = this.room.players.find(p => p.id === socketId);
+    if (!player) return false;
+
+    // Lobideyse direkt sil
+    if (this.room.status === GameStatus.LOBBY) {
+      this.removePlayer(socketId);
+      return true;
+    }
+
+    // Oyun sırasında: silme, işaretle
+    (player as any).disconnected = true;
+    return false; // false = oyuncu silinmedi, reconnect beklenecek
+  }
+
+  // OYUNCU RECONNECT: userId ile eski oyuncuyu bul, yeni socket ID ata
+  reconnectPlayer(userId: string, newSocketId: string): boolean {
+    const player = this.room.players.find(p => p.userId === userId);
+    if (!player) return false;
+
+    const oldId = player.id;
+    player.id = newSocketId;
+    (player as any).disconnected = false;
+
+    // Host ID güncelle
+    if (this.room.hostId === oldId) {
+      this.room.hostId = newSocketId;
+    }
+
+    // Aktif oyuncu ID güncelle
+    if (this.room.activePlayerId === oldId) {
+      this.room.activePlayerId = newSocketId;
+    }
+
+    // Binaların owner ID'sini güncelle
+    this.room.buildings.forEach(b => {
+      if (b.ownerId === oldId) b.ownerId = newSocketId;
+    });
+
+    // Trade offer ID güncelle
+    if (this.room.currentTradeOffer) {
+      if (this.room.currentTradeOffer.offererId === oldId) {
+        this.room.currentTradeOffer.offererId = newSocketId;
+      }
+      this.room.currentTradeOffer.acceptors = this.room.currentTradeOffer.acceptors.map(
+        id => id === oldId ? newSocketId : id
+      );
+    }
+
+    // Start rolls güncelle
+    this.room.startRolls.forEach(r => {
+      if (r.playerId === oldId) r.playerId = newSocketId;
+    });
+
+    // Cartel, longest road, largest army ID güncelle
+    if (this.room.longestRoadPlayerId === oldId) this.room.longestRoadPlayerId = newSocketId;
+    if (this.room.largestArmyPlayerId === oldId) this.room.largestArmyPlayerId = newSocketId;
+    if (this.room.activeCartelPlayerId === oldId) this.room.activeCartelPlayerId = newSocketId;
+    if ((this.room as any).winnerId === oldId) (this.room as any).winnerId = newSocketId;
+
+    console.log(`🔄 Reconnect: ${player.name} (${oldId} → ${newSocketId})`);
+    return true;
+  }
+
+  // userId ile oyuncu bul
+  findPlayerByUserId(userId: string) {
+    return this.room.players.find(p => p.userId === userId);
   }
 
   // --- TİCARET SİSTEMİ ---
@@ -1296,21 +1366,24 @@ export class RoomManager {
   }
 
   // === ADMİN ÖZELLİKLERİ (SADECE HOST) ===
-  // Admin kaynak ekleme: Belirtilen oyuncuya kaynak ekler
+  // Admin kaynak ekleme/silme: Belirtilen oyuncuya kaynak ekler veya siler
   // GÜVENLİK: Sadece host kullanabilir
   adminGiveResources(requesterId: string, targetId: string, resources: Partial<Record<ResourceType, number>>): string {
     if (requesterId !== this.room.hostId) throw new Error("Sadece Host bu komutu kullanabilir!");
     const target = this.room.players.find(p => p.id === targetId);
     if (!target) throw new Error("Oyuncu bulunamadı!");
 
-    // Her kaynak için miktarları ekle
+    let isRemove = false;
+    // Her kaynak için miktarları ekle veya sil
     for (const [res, amount] of Object.entries(resources)) {
-      if (amount && amount > 0) {
-        target.resources[res as ResourceType] = (target.resources[res as ResourceType] || 0) + amount;
+      if (amount && amount !== 0) {
+        const current = target.resources[res as ResourceType] || 0;
+        target.resources[res as ResourceType] = Math.max(0, current + amount);
+        if (amount < 0) isRemove = true;
       }
     }
 
-    return `Admin: ${target.name}’a kaynak eklendi.`;
+    return isRemove ? `Admin: ${target.name}'dan kaynak silindi.` : `Admin: ${target.name}'a kaynak eklendi.`;
   }
 
   // Admin VP ayarlama: Belirtilen oyuncunun VP puanını ayarlar

@@ -1,0 +1,42 @@
+# --- Bağımlılıklar (Asla yükleme) ---
+node_modules/
+package-lock.json # (Opsiyonel: Genelde yüklenir ama bazen sorun çıkarırsa sil)
+yarn.lock # (Eğer npm kullanıyorsan buna gerek yok ama kalsın)
+
+# --- Build ve Derleme Çıktıları ---
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# --- Güvenlik ve Gizli Anahtarlar (ÇOK ÖNEMLİ) ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Firebase Servis Hesap Anahtarları (Senin hatanı çözen kısım burası)
+*-firebase-adminsdk-*.json
+service-account.json
+service-account-key.json
+google-services.json
+
+# --- Log Dosyaları ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# --- İşletim Sistemi ve Editör Dosyaları ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Vercel ve Yerel Ayarlar ---
+.vercel
