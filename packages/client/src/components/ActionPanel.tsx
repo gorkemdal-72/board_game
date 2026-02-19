@@ -10,10 +10,9 @@ interface ActionPanelProps {
   onBuyCard: () => void; // EKLENDİ
 }
 
-export function ActionPanel({ onBuildRoad, onBuildSettlement, onBuildCity, onEndTurn, isBuilding, onCancelBuild, onBuyCard }: ActionPanelProps) {
+export function ActionPanelContent({ onBuildRoad, onBuildSettlement, onBuildCity, onEndTurn, isBuilding, onCancelBuild, onBuyCard }: ActionPanelProps) {
   return (
-    <div className="absolute right-6 bottom-32 flex flex-col gap-3 z-40">
-
+    <>
       {isBuilding ? (
         <button
           onClick={onCancelBuild}
@@ -72,6 +71,24 @@ export function ActionPanel({ onBuildRoad, onBuildSettlement, onBuildCity, onEnd
           </button>
         </>
       )}
+    </>
+  );
+}
+
+export function ActionPanel(props: ActionPanelProps) {
+  return (
+    <div className="hidden md:flex absolute right-6 bottom-32 flex-col gap-3 z-40">
+      <ActionPanelContent {...props} />
+    </div>
+  );
+}
+
+export function MobileActionPanel(props: ActionPanelProps) {
+  return (
+    <div className="md:hidden fixed bottom-20 left-0 w-full flex flex-col gap-3 z-50 items-center pointer-events-none">
+      <div className="pointer-events-auto flex flex-col items-center gap-2">
+        <ActionPanelContent {...props} />
+      </div>
     </div>
   );
 }

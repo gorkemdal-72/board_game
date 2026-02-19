@@ -72,10 +72,13 @@ export function HexBoard({ tiles, buildings = [], players = [], onVertexClick, o
   const svgSize = isBigMap ? 900 : 800;
 
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-center w-full h-full overflow-hidden">
       {/* ViewBox dinamik: 5 kişilik büyük haritada daha geniş alan */}
-      <svg width={svgSize} height={svgSize} viewBox={svgViewBox}
-        className="bg-[#1e293b] border-[12px] border-[#0f172a] rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-visible">
+      <svg
+        viewBox={svgViewBox}
+        className="bg-[#1e293b] border-[4px] md:border-[12px] border-[#0f172a] rounded-[1rem] md:rounded-[3rem] shadow-[0_0_20px_rgba(0,0,0,0.6)] md:shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-visible w-full h-full max-w-[95vw] max-h-[80vh] md:max-w-none md:max-h-none md:w-auto md:h-auto"
+        style={{ maxWidth: '100%', maxHeight: '100%' }}
+      >
         <g>
           {/* 1. ARAZİLER */}
           {tiles.map((tile, index) => (

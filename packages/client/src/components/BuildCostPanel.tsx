@@ -56,7 +56,7 @@ interface BuildCostPanelProps {
     };
 }
 
-export function BuildCostPanel({ playerResources, buildingCounts }: BuildCostPanelProps) {
+export function BuildCostPanelContent({ playerResources, buildingCounts }: BuildCostPanelProps) {
     // Kaynak yeterli mi kontrol et
     const canAfford = (buildingType: string) => {
         const cost = BUILDING_COSTS[buildingType];
@@ -103,7 +103,7 @@ export function BuildCostPanel({ playerResources, buildingCounts }: BuildCostPan
     ];
 
     return (
-        <div className=" fixed right-1 top-25 bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3 w-64">
+        <>
             <h3 className="text-xs font-bold text-gray-400 uppercase mb-2 text-center">
                 📋 İnşaat Maliyetleri
             </h3>
@@ -172,6 +172,30 @@ export function BuildCostPanel({ playerResources, buildingCounts }: BuildCostPan
                         <span className="w-2 h-2 rounded bg-red-600"></span> Limit doldu
                     </span>
                 </div>
+            </div>
+        </>
+    );
+}
+
+export function BuildCostPanel(props: BuildCostPanelProps) {
+    return (
+        <div className="hidden md:block fixed right-1 top-25 bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3 w-64">
+            <BuildCostPanelContent {...props} />
+        </div>
+    );
+}
+
+export function MobileBuildCostPanel(props: BuildCostPanelProps & { onClose?: () => void }) {
+    return (
+        <div className="md:hidden fixed inset-0 w-full h-full bg-slate-900/95 backdrop-blur-sm z-[100] flex flex-col justify-center items-center p-6 text-center">
+            <div className="relative bg-slate-800 p-4 rounded-xl shadow-2xl w-full max-w-sm border border-slate-700">
+                <button
+                    onClick={props.onClose}
+                    className="absolute -top-3 -right-3 bg-red-600 text-white w-8 h-8 flex items-center justify-center rounded-full shadow-lg z-50 hover:bg-red-500 transition-colors border-2 border-slate-900"
+                >
+                    ❌
+                </button>
+                <BuildCostPanelContent {...props} />
             </div>
         </div>
     );
