@@ -418,7 +418,11 @@ io.on('connection', async (socket) => {
   socket.on('trade_with_bank', (data) => {
     try {
       const room = rooms.get(playerRoomMap.get(socket.id)!);
-      if (room) { room.tradeWithBank(socket.id, data.resource); io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState()); }
+      if (room) {
+        const msg = room.tradeWithBank(socket.id, data.resource);
+        io.to(room.getRoomInfo().id).emit('game_state_update', room.getGameState());
+        socket.emit('system_alert', { message: msg });
+      }
     } catch (e: any) { socket.emit('error_message', { message: e.message }); }
   });
 

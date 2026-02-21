@@ -252,6 +252,7 @@ export class RoomManager {
     const goldGain = RoomManager.SELL_PRICES[sellResource] || 1;
     player.resources[sellResource] -= 1;
     player.resources[ResourceType.GOLD] += goldGain;
+    return `1 ${sellResource} satıldı, ${goldGain} Altın kazanıldı! 💰`;
   }
 
   // KARABORSA: Formül = SatışFiyatı × 2 + KonumVergisi
@@ -1342,7 +1343,7 @@ export class RoomManager {
         this.room.players = newOrder;
 
         // Setup Phase Başlat
-        this.room.players.forEach(p => p.resources[ResourceType.GOLD] = 7);
+        this.room.players.forEach(p => p.resources[ResourceType.GOLD] = 8);
         this.room.status = GameStatus.SETUP_ROUND_1;
         this.room.activePlayerId = this.room.players[0].id;
         this.room.turnSubPhase = 'settlement';

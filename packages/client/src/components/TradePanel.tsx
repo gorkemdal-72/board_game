@@ -143,25 +143,29 @@ export function TradePanelContent(props: TradePanelProps) {
           <div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-green-400 font-bold">İHRACAT (SAT)</span>
-              <span className="text-[10px] text-gray-500">1 Kaynak → X 💰</span>
+              <span className="text-[10px] text-gray-500">1 adet sat → altın kazan</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {resources.map(res => (
-                <button
-                  key={`sell-${res}`}
-                  onClick={() => props.onBankSell(res)}
-                  disabled={!props.isMyTurn} // Sıra kontrolü
-                  className={`bg-slate-800 hover:bg-green-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all ${!props.isMyTurn ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  title={!props.isMyTurn ? 'Sıra sende değil!' : `1 ${RESOURCE_NAMES[res]} satıp ${SELL_PRICES[res]} Altın kazan`}
-                >
-                  <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
-                  <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                    <span>1 {RESOURCE_ICONS[res]}</span>
-                    <span>→</span>
-                    <span className="text-yellow-400">{SELL_PRICES[res]} 💰</span>
-                  </div>
-                </button>
-              ))}
+              {resources.map(res => {
+                const price = SELL_PRICES[res] || 1;
+                const tierColor = price >= 3 ? 'text-purple-400' : price >= 2 ? 'text-blue-400' : 'text-green-400';
+                return (
+                  <button
+                    key={`sell-${res}`}
+                    onClick={() => props.onBankSell(res)}
+                    disabled={!props.isMyTurn}
+                    className={`bg-slate-800 hover:bg-green-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all ${!props.isMyTurn ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    title={!props.isMyTurn ? 'Sıra sende değil!' : `1 ${RESOURCE_NAMES[res]} satıp ${price} Altın kazan`}
+                  >
+                    <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
+                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                      <span>1 {RESOURCE_ICONS[res]}</span>
+                      <span>→</span>
+                      <span className={`font-bold ${tierColor}`}>{price} 💰</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -178,13 +182,13 @@ export function TradePanelContent(props: TradePanelProps) {
                   <button
                     key={`buy-${res}`}
                     onClick={() => props.onBankBuy(res)}
-                    disabled={!props.isMyTurn} // Sıra kontrolü
+                    disabled={!props.isMyTurn}
                     className={`bg-slate-800 hover:bg-red-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all ${!props.isMyTurn ? 'opacity-40 cursor-not-allowed' : ''}`}
                     title={!props.isMyTurn ? 'Sıra sende değil!' : `${rate} Altın ödeyerek 1 ${RESOURCE_NAMES[res]} al`}
                   >
                     <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                      <span className="text-yellow-400">{rate} 💰</span>
+                      <span className="text-yellow-400 font-bold">{rate} 💰</span>
                       <span>→</span>
                       <span>1 {RESOURCE_ICONS[res]}</span>
                     </div>
@@ -192,8 +196,9 @@ export function TradePanelContent(props: TradePanelProps) {
                 );
               })}
             </div>
-            <div className="text-[9px] text-gray-500 text-center mt-2 italic border-t border-slate-700 pt-1">
-              Formül: Satış×2 + Vergi (🏰+0, 🏠+1, 🛤️+2, ❌+3)
+            <div className="text-[9px] text-gray-500 text-center mt-2 italic border-t border-slate-700 pt-1 space-y-0.5">
+              <div>Fiyat = kaynağın değeri + konumuna göre vergi</div>
+              <div>🏰Şehir: en ucuz · 🏠Köy: ucuz · 🛤️Yol: orta · ❌Yok: pahalı</div>
             </div>
           </div>
 
