@@ -4,10 +4,10 @@ import { Lobby } from './components/Lobby';
 import { Tile, GameState, PlayerColor, Player, GameStatus, RoomInfo, Building, BuildingType, ResourceType, DevCardType, hexToPixel, getHexCorners } from '@cumor/shared';
 import { io, Socket } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify';
-import { ResourcePanel } from './components/ResourcePanel';
-import { ActionPanel } from './components/ActionPanel';
-import { TradePanel } from './components/TradePanel';
-import { BuildCostPanel } from './components/BuildCostPanel';
+import { ResourcePanel, MobileResourcePanel, MobileDevCardPanel } from './components/ResourcePanel';
+import { ActionPanel, MobileActionPanel } from './components/ActionPanel';
+import { TradePanel, MobileTradePanel } from './components/TradePanel';
+import { BuildCostPanel, MobileBuildCostPanel } from './components/BuildCostPanel';
 import { ChatPanel } from './components/ChatPanel';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfilePanel } from './components/ProfilePanel';
@@ -63,6 +63,10 @@ function App() {
   const [authIsAdmin, setAuthIsAdmin] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+
+  // MOBİL RESPONSIVE STATE
+  const [activeMobilePanel, setActiveMobilePanel] = useState<'none' | 'trade' | 'actions' | 'costs' | 'cards'>('none');
+
 
   // Socket bağlantısını başlat (token ile)
   const connectSocket = useCallback((token: string | null) => {
@@ -414,9 +418,9 @@ function App() {
         )}
       </header>
 
-      <main className="flex-1 relative flex items-center justify-center bg-slate-900 overflow-hidden">
+      <main className={`flex-1 relative flex items-center justify-center bg-slate-900 ${isInGame ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {!isInGame && (
-          <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center gap-4">
+          <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center gap-4 py-4 md:py-0">
             {/* Profil Paneli */}
             <div className="w-full flex justify-end">
               <button
@@ -586,13 +590,37 @@ function App() {
             )}
 
             {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && !hasRolled && (
-              <div className="absolute right-119 bottom-10 z-50">
-                <button onClick={handleRollDice} className="bg-red-600 hover:bg-red-500 text-white w-24 h-24 rounded-full font-black text-xl shadow-[0_0_30px_rgba(220,38,38,0.6)] border-4 border-slate-900 transition-transform active:scale-90 flex flex-col items-center justify-center gap-1">
+              <div className="absolute right-119 bottom-10 z-50 pointer-events-none md:pointer-events-auto">
+                 {/* PC DICE BUTTON (Hidden on Mobile) */}
+                <button onClick={handleRollDice} className="hidden md:flex bg-red-600 hover:bg-red-500 text-white w-24 h-24 rounded-full font-black text-xl shadow-[0_0_30px_rgba(220,38,38,0.6)] border-4 border-slate-900 transition-transform active:scale-90 flex-col items-center justify-center gap-1">
                   <span>🎲</span><span>ZAR AT</span>
                 </button>
               </div>
             )}
 
+            {/* MOBILE DICE BUTTON (Hidden on Desktop) */}
+            {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && !hasRolled && (
+                 <button 
+                  onClick={handleRollDice} 
+                  className="md:hidden fixed bottom-40 left-1/2 -translate-x-1/2 bg-red-600 hover:bg-red-500 text-white w-20 h-20 rounded-full font-black text-lg shadow-[0_0_20px_rgba(220,38,38,0.8)] border-4 border-slate-900 z-50 flex flex-col items-center justify-center animate-bounce"
+                 >
+                  <span>🎲</span>
+                  <span className="text-xs">ZAR AT</span>
+                </button>
+            )}
+
+            {/* MOBILE END TURN BUTTON (Hidden on Desktop) */}
+            {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && hasRolled && (
+                 <button 
+                  onClick={handleEndTurn} 
+                  className="md:hidden fixed bottom-40 left-1/2 -translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white w-20 h-20 rounded-full font-black text-lg shadow-[0_0_20px_rgba(37,99,235,0.8)] border-4 border-slate-900 z-50 flex flex-col items-center justify-center animate-pulse"
+                 >
+                  <span>⏭️</span>
+                  <span className="text-[10px]">BİTİR</span>
+                </button>
+            )}
+
+            {/* DESKTOP PANELS (Hidden on Mobile via CSS) */}
             {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && hasRolled && (
               <ActionPanel
                 onBuildRoad={startBuildRoad}
@@ -602,10 +630,10 @@ function App() {
                 onEndTurn={handleEndTurn}
                 isBuilding={turnSubPhase === 'road' || turnSubPhase === 'settlement' || turnSubPhase === 'city' ? turnSubPhase : null}
                 onCancelBuild={cancelBuild}
+                devCardDeckCount={devCardDeckCount}
               />
             )}
 
-            {/* TİCARET PANELİ */}
             {isInGame && gameStatus === GameStatus.PLAYING && (
               <TradePanel
                 onBankSell={handleBankSell}
@@ -621,21 +649,19 @@ function App() {
                 tiles={tiles}
                 onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
                 canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 15}
-                isMyTurn={isMyTurn} // YENİ: Sıra kontrolü için
+                isMyTurn={isMyTurn}
               />
             )}
 
-            {/* KAYNAK VE KART PANELİ */}
             {isInGame && activePlayer && myId && (
               <ResourcePanel
                 resources={players.find(p => p.id === myId)?.resources || {} as any}
                 devCards={players.find(p => p.id === myId)?.devCards || {} as any}
-                onPlayCard={handlePlayCard} // BAĞLANDI
-                isMyTurn={isMyTurn} // BAĞLANDI
+                onPlayCard={handlePlayCard}
+                isMyTurn={isMyTurn}
               />
             )}
 
-            {/* MALİYET PANELİ */}
             {isInGame && myId && (
               <BuildCostPanel
                 playerResources={players.find(p => p.id === myId)?.resources || {} as any}
@@ -645,6 +671,71 @@ function App() {
                   roads: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.ROAD).length,
                 }}
               />
+            )}
+
+            {/* MOBILE PANELS (Conditional Render) */}
+            {isInGame && isMyTurn && gameStatus === GameStatus.PLAYING && hasRolled && activeMobilePanel === 'actions' && (
+              <MobileActionPanel
+                onBuildRoad={startBuildRoad}
+                onBuildSettlement={startBuildSettlement}
+                onBuildCity={startBuildCity}
+                onBuyCard={handleBuyCard}
+                onEndTurn={handleEndTurn}
+                isBuilding={turnSubPhase === 'road' || turnSubPhase === 'settlement' || turnSubPhase === 'city' ? turnSubPhase : null}
+                onCancelBuild={cancelBuild}
+                devCardDeckCount={devCardDeckCount}
+              />
+            )}
+
+            {isInGame && gameStatus === GameStatus.PLAYING && activeMobilePanel === 'trade' && (
+              <MobileTradePanel
+                onBankSell={handleBankSell}
+                onBankBuy={handleBankBuy}
+                onCreateOffer={handleCreateOffer}
+                onAcceptOffer={handleAcceptOffer}
+                onFinalizeTrade={handleFinalizeTrade}
+                onCancelOffer={handleCancelOffer}
+                currentOffer={currentOffer}
+                myId={myId || ''}
+                players={players}
+                buildings={buildings}
+                tiles={tiles}
+                onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
+                canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 15}
+                isMyTurn={isMyTurn}
+                onClose={() => setActiveMobilePanel('none')}
+              />
+            )}
+
+            {isInGame && activePlayer && myId && (
+              <MobileResourcePanel
+                resources={players.find(p => p.id === myId)?.resources || {} as any}
+                devCards={players.find(p => p.id === myId)?.devCards || {} as any}
+                onPlayCard={handlePlayCard}
+                isMyTurn={isMyTurn}
+              />
+            )}
+
+            {isInGame && myId && activeMobilePanel === 'costs' && (
+              <MobileBuildCostPanel
+                playerResources={players.find(p => p.id === myId)?.resources || {} as any}
+                buildingCounts={{
+                  settlements: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.SETTLEMENT).length,
+                  cities: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.CITY).length,
+                  roads: buildings.filter(b => b.ownerId === myId && b.type === BuildingType.ROAD).length,
+                }}
+                onClose={() => setActiveMobilePanel('none')}
+              />
+            )}
+
+            {isInGame && activePlayer && myId && activeMobilePanel === 'cards' && (
+               <MobileDevCardPanel
+                resources={players.find(p => p.id === myId)?.resources || {} as any}
+                devCards={players.find(p => p.id === myId)?.devCards || {} as any}
+                onPlayCard={handlePlayCard}
+                isMyTurn={isMyTurn}
+                onClose={() => setActiveMobilePanel('none')}
+               />
             )}
 
 
@@ -839,6 +930,47 @@ function App() {
             )}
 
           </>
+        )}
+
+        {/* MOBILE NAVBAR - Sadece mobilde ve oyunda görünür */}
+        {isInGame && (
+          <div className="md:hidden fixed bottom-0 left-0 w-full bg-slate-900 border-t border-slate-700 flex justify-around items-center h-16 z-[60] pb-2 safe-area-bottom">
+            <button onClick={() => {
+              setActiveMobilePanel(activeMobilePanel === 'trade' ? 'none' : 'trade');
+              setIsChatOpen(false); 
+            }} className={`flex flex-col items-center p-2 transition-colors ${activeMobilePanel === 'trade' ? 'text-blue-400' : 'text-gray-400'}`}>
+              <span className="text-2xl">⚖️</span>
+              <span className="text-[10px] font-bold">Takas</span>
+            </button>
+            <button onClick={() => {
+              setActiveMobilePanel(activeMobilePanel === 'actions' ? 'none' : 'actions');
+              setIsChatOpen(false);
+            }} className={`flex flex-col items-center p-2 transition-colors ${activeMobilePanel === 'actions' ? 'text-blue-400' : 'text-gray-400'}`}>
+              <span className="text-2xl">🔨</span>
+              <span className="text-[10px] font-bold">İnşaat</span>
+            </button>
+            <button onClick={() => {
+               setActiveMobilePanel(activeMobilePanel === 'cards' ? 'none' : 'cards');
+               setIsChatOpen(false);
+            }} className={`flex flex-col items-center p-2 transition-colors ${activeMobilePanel === 'cards' ? 'text-blue-400' : 'text-gray-400'}`}>
+              <span className="text-2xl">🃏</span>
+              <span className="text-[10px] font-bold">Kartlar</span>
+            </button>
+            <button onClick={() => {
+              setActiveMobilePanel(activeMobilePanel === 'costs' ? 'none' : 'costs');
+              setIsChatOpen(false);
+            }} className={`flex flex-col items-center p-2 transition-colors ${activeMobilePanel === 'costs' ? 'text-blue-400' : 'text-gray-400'}`}>
+              <span className="text-2xl">📋</span>
+              <span className="text-[10px] font-bold">Maliyet</span>
+            </button>
+            <button onClick={() => {
+              setIsChatOpen(!isChatOpen);
+              if (!isChatOpen) setActiveMobilePanel('none');
+            }} className={`flex flex-col items-center p-2 transition-colors ${isChatOpen ? 'text-blue-400' : 'text-gray-400'}`}>
+              <span className="text-2xl">💬</span>
+              <span className="text-[10px] font-bold">Sohbet</span>
+            </button>
+          </div>
         )}
       </main>
     </div>

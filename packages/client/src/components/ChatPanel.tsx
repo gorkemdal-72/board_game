@@ -61,9 +61,9 @@ export function ChatPanel({ socket, myId, players, isOpen, onToggle }: ChatPanel
 
   if (!isOpen) {
     return (
-      <button 
+      <button
         onClick={onToggle}
-        className={`fixed bottom-4 left-4 z-50 p-3 rounded-full shadow-lg transition-all hover:scale-110 ${hasUnread ? 'bg-red-500 animate-bounce' : 'bg-slate-700 hover:bg-slate-600'}`}
+        className={`hidden md:block fixed bottom-4 left-4 z-50 p-3 rounded-full shadow-lg transition-all hover:scale-110 ${hasUnread ? 'bg-red-500 animate-bounce' : 'bg-slate-700 hover:bg-slate-600'}`}
       >
         💬
       </button>
@@ -89,7 +89,7 @@ export function ChatPanel({ socket, myId, players, isOpen, onToggle }: ChatPanel
             <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
               <div className="flex items-center gap-1 mb-0.5">
                 <span className="text-[10px] font-bold" style={{ color: msg.color }}>{msg.senderName}</span>
-                <span className="text-[8px] text-gray-600">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                <span className="text-[8px] text-gray-600">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <div className={`px-3 py-1.5 rounded-lg text-sm max-w-[85%] break-words ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-700 text-gray-200 rounded-bl-none'}`}>
                 {msg.text}

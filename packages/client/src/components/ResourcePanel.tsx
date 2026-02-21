@@ -60,10 +60,45 @@ interface ResourcePanelProps {
   isMyTurn: boolean; // YENİ: Sadece sıra bizdeyse oynayabilelim
 }
 
-export function ResourcePanel({ resources, devCards, onPlayCard, isMyTurn }: ResourcePanelProps) {
+export function DevCardContent({ devCards, onPlayCard, isMyTurn }: { devCards: Record<DevCardType, number>, onPlayCard: (card: DevCardType) => void, isMyTurn: boolean }) {
   return (
-    <div className="fixed bottom-1 left-1/2 -translate-x-1/2 flex gap-4 z-50 items-end">
+    <div className="flex gap-3 h-28 items-start">
+      {Object.values(DevCardType).map(type => {
+        const count = devCards ? devCards[type] || 0 : 0;
+        if (count === 0) return null;
 
+        return (
+          <div key={type} className="flex flex-col items-center justify-between h-full min-w-[50px]">
+            <div className="flex flex-col items-center">
+              <div className="text-2xl mb-1">{CARD_ICONS[type]}</div>
+              <div className="font-black text-white text-sm bg-purple-700 rounded-full w-5 h-5 flex items-center justify-center -mt-2 border border-purple-400">
+                {count}
+              </div>
+            </div>
+
+            {/* OYNA BUTONU (Sıra Bendeyse) */}
+            {isMyTurn && (
+              <button
+                onClick={() => onPlayCard(type)}
+                className="bg-green-500 hover:bg-green-400 text-white text-[10px] font-bold py-1 px-2 rounded shadow transition-colors mt-1"
+                title={CARD_TOOLTIPS[type] || 'Kartı kullan'}
+              >
+                KULLAN
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {(!devCards || Object.values(devCards).every(v => v === 0)) && (
+        <div className="text-xs text-purple-300 font-bold self-center px-2">KART YOK</div>
+      )}
+    </div>
+  );
+}
+
+export function ResourcePanelContent({ resources, devCards, onPlayCard, isMyTurn, showCards = true }: ResourcePanelProps & { showCards?: boolean }) {
+  return (
+    <>
       {/* KAYNAKLAR */}
       <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-2xl shadow-2xl flex gap-4 h-24 items-center">
         {Object.values(ResourceType).map(type => (
@@ -76,39 +111,45 @@ export function ResourcePanel({ resources, devCards, onPlayCard, isMyTurn }: Res
         ))}
       </div>
 
-      {/* KARTLAR */}
-      <div className="bg-purple-900/95 backdrop-blur-md border border-purple-500 p-3 rounded-2xl shadow-2xl flex gap-3 h-28 items-start">
-        {Object.values(DevCardType).map(type => {
-          const count = devCards ? devCards[type] || 0 : 0;
-          if (count === 0) return null;
+      {/* KARTLAR (İsteğe bağlı - PC'de var, Mobilde yok) */}
+      {showCards && (
+        <div className="bg-purple-900/95 backdrop-blur-md border border-purple-500 p-3 rounded-2xl shadow-2xl">
+           <DevCardContent devCards={devCards} onPlayCard={onPlayCard} isMyTurn={isMyTurn} />
+        </div>
+      )}
+    </>
+  );
+}
 
-          return (
-            <div key={type} className="flex flex-col items-center justify-between h-full min-w-[50px]">
-              <div className="flex flex-col items-center">
-                <div className="text-2xl mb-1">{CARD_ICONS[type]}</div>
-                <div className="font-black text-white text-sm bg-purple-700 rounded-full w-5 h-5 flex items-center justify-center -mt-2 border border-purple-400">
-                  {count}
-                </div>
-              </div>
+export function ResourcePanel(props: ResourcePanelProps) {
+  return (
+    <div className="hidden md:flex fixed bottom-1 left-1/2 -translate-x-1/2 gap-4 z-50 items-end">
+      <ResourcePanelContent {...props} showCards={true} />
+    </div>
+  );
+}
 
-              {/* OYNA BUTONU (Sıra Bendeyse) */}
-              {isMyTurn && (
-                <button
-                  onClick={() => onPlayCard(type)}
-                  className="bg-green-500 hover:bg-green-400 text-white text-[10px] font-bold py-1 px-2 rounded shadow transition-colors mt-1"
-                  title={CARD_TOOLTIPS[type] || 'Kartı kullan'}
-                >
-                  KULLAN
-                </button>
-              )}
-            </div>
-          );
-        })}
-        {(!devCards || Object.values(devCards).every(v => v === 0)) && (
-          <div className="text-xs text-purple-300 font-bold self-center px-2">KART YOK</div>
-        )}
+export function MobileResourcePanel(props: ResourcePanelProps) {
+  return (
+    <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 flex gap-4 z-50 items-end scale-90 origin-bottom">
+      <ResourcePanelContent {...props} showCards={false} />
+    </div>
+  );
+}
+
+export function MobileDevCardPanel({ devCards, onPlayCard, isMyTurn, onClose }: ResourcePanelProps & { onClose?: () => void }) {
+  return (
+    <div className="md:hidden fixed inset-0 w-full h-full bg-purple-900/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6">
+       <button 
+        onClick={onClose}
+        className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-full shadow-lg z-50 hover:bg-red-500 transition-colors"
+      >
+        ❌
+      </button>
+      <h2 className="text-2xl font-bold text-white mb-6">Gelişim Kartları</h2>
+      <div className="bg-slate-800 p-6 rounded-2xl border border-purple-500 w-full max-w-sm flex flex-wrap justify-center gap-4">
+        <DevCardContent devCards={devCards} onPlayCard={onPlayCard} isMyTurn={isMyTurn} />
       </div>
-
     </div>
   );
 }

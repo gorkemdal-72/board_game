@@ -8,12 +8,12 @@ interface ActionPanelProps {
   isBuilding: 'road' | 'settlement' | 'city' | null; // GÜNCELLENDİ
   onCancelBuild: () => void;
   onBuyCard: () => void; // EKLENDİ
+  devCardDeckCount?: number; // Destede kalan kart sayısı
 }
 
-export function ActionPanel({ onBuildRoad, onBuildSettlement, onBuildCity, onEndTurn, isBuilding, onCancelBuild, onBuyCard }: ActionPanelProps) {
+export function ActionPanelContent({ onBuildRoad, onBuildSettlement, onBuildCity, onEndTurn, isBuilding, onCancelBuild, onBuyCard, devCardDeckCount }: ActionPanelProps) {
   return (
-    <div className="absolute right-6 bottom-32 flex flex-col gap-3 z-40">
-
+    <>
       {isBuilding ? (
         <button
           onClick={onCancelBuild}
@@ -55,11 +55,17 @@ export function ActionPanel({ onBuildRoad, onBuildSettlement, onBuildCity, onEnd
             {/* KART ALMA BUTONU */}
             <button
               onClick={onBuyCard}
-              className="bg-purple-700 hover:bg-purple-600 text-white p-4 rounded-xl shadow-lg flex flex-col items-center gap-1 border border-slate-600 transition-all hover:scale-105"
-              title="Gelişim Kartı Satın Al: 1 Elmas + 1 Tekstil + 1 Gıda. Kartlar sıradaki turda kullanılabilir."
+              className={`${devCardDeckCount === 0 ? 'bg-gray-600 opacity-50 cursor-not-allowed' : 'bg-purple-700 hover:bg-purple-600'} text-white p-4 rounded-xl shadow-lg flex flex-col items-center gap-1 border border-slate-600 transition-all hover:scale-105`}
+              title={`Gelişim Kartı Satın Al: 1 Elmas + 1 Tekstil + 1 Gıda. Destede ${devCardDeckCount ?? '?'} kart kaldı.`}
+              disabled={devCardDeckCount === 0}
             >
               <span className="text-2xl">🃏</span>
               <span className="text-[10px] font-bold">KART (1💎 1🐑 1🌾)</span>
+              {devCardDeckCount !== undefined && (
+                <span className={`text-[9px] font-bold ${devCardDeckCount <= 5 ? 'text-red-300' : 'text-yellow-300'}`}>
+                  Deste: {devCardDeckCount}/30
+                </span>
+              )}
             </button>
           </div>
 
@@ -72,6 +78,24 @@ export function ActionPanel({ onBuildRoad, onBuildSettlement, onBuildCity, onEnd
           </button>
         </>
       )}
+    </>
+  );
+}
+
+export function ActionPanel(props: ActionPanelProps) {
+  return (
+    <div className="hidden md:flex absolute right-6 bottom-32 flex-col gap-3 z-40">
+      <ActionPanelContent {...props} />
+    </div>
+  );
+}
+
+export function MobileActionPanel(props: ActionPanelProps) {
+  return (
+    <div className="md:hidden fixed bottom-20 left-0 w-full flex flex-col gap-3 z-50 items-center pointer-events-none">
+      <div className="pointer-events-auto flex flex-col items-center gap-2">
+        <ActionPanelContent {...props} />
+      </div>
     </div>
   );
 }

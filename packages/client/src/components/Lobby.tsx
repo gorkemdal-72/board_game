@@ -26,46 +26,46 @@ export function Lobby({ rooms, onCreateRoom, onJoinRoom }: LobbyProps) {
   const [joinPass, setJoinPass] = useState("");
 
   return (
-    <div className="flex flex-col items-center bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700 w-[600px] h-[500px]">
-      <div className="flex items-center justify-between w-full mb-6">
-        <h2 className="text-3xl font-bold text-white tracking-widest font-mono">SERVER BROWSER</h2>
+    <div className="flex flex-col items-center bg-slate-800 p-4 md:p-6 rounded-xl shadow-2xl border border-slate-700 w-full max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <div className="flex items-center justify-between w-full mb-4 md:mb-6">
+        <h2 className="text-xl md:text-3xl font-bold text-white tracking-widest font-mono">SERVER BROWSER</h2>
         <button
           onClick={() => setShowRulebook(true)}
-          className="bg-amber-700 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+          className="bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold text-xs md:text-sm transition-colors shrink-0 ml-2"
           title="Oyun kurallarını gör"
         >
-          📖 Kural Kitabı
+          📖 Kurallar
         </button>
       </div>
 
       {/* TABLAR */}
-      <div className="flex w-full mb-6 border-b border-slate-600">
+      <div className="flex w-full mb-4 md:mb-6 border-b border-slate-600">
         <button
           onClick={() => setActiveTab('list')}
-          className={`flex-1 py-2 font-bold ${activeTab === 'list' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400'}`}
+          className={`flex-1 py-2 font-bold text-sm md:text-base ${activeTab === 'list' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400'}`}
         >
           ODALAR
         </button>
         <button
           onClick={() => setActiveTab('create')}
-          className={`flex-1 py-2 font-bold ${activeTab === 'create' ? 'text-green-400 border-b-2 border-green-400' : 'text-gray-400'}`}
+          className={`flex-1 py-2 font-bold text-sm md:text-base ${activeTab === 'create' ? 'text-green-400 border-b-2 border-green-400' : 'text-gray-400'}`}
         >
           ODA OLUŞTUR
         </button>
       </div>
 
       {/* ORTAK ALAN: İSİM VE RENK SEÇİMİ */}
-      <div className="w-full bg-slate-900 p-4 rounded-lg mb-4 flex gap-4 items-center">
+      <div className="w-full bg-slate-900 p-3 md:p-4 rounded-lg mb-4 flex flex-col md:flex-row gap-3 md:gap-4 items-stretch md:items-center">
         <input
           type="text" placeholder="Takma Adın" value={playerName} onChange={e => setPlayerName(e.target.value)}
-          className="bg-slate-800 text-white p-2 rounded border border-slate-600 flex-1 outline-none"
+          className="bg-slate-800 text-white p-2 rounded border border-slate-600 flex-1 outline-none text-sm md:text-base"
         />
-        <div className="flex gap-1">
+        <div className="flex gap-1.5 flex-wrap justify-center md:justify-start">
           {/* Enum değerleri üzerinde dönüyoruz */}
           {Object.values(PlayerColor).map(c => (
             <div
               key={c} onClick={() => setSelectedColor(c)}
-              className={`w-6 h-6 rounded-full cursor-pointer ${selectedColor === c ? 'ring-2 ring-white scale-110' : 'opacity-50'}`}
+              className={`w-7 h-7 md:w-6 md:h-6 rounded-full cursor-pointer ${selectedColor === c ? 'ring-2 ring-white scale-110' : 'opacity-50'}`}
               style={{ backgroundColor: c }}
             />
           ))}
