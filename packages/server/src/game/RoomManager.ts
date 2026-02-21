@@ -693,7 +693,24 @@ export class RoomManager {
       }
       if (b.type === BuildingType.ROAD) {
         const bEndpoints = this.getRoadEndpoints(b.coord.q, b.coord.r, b.coord.edgeIndex!);
-        return (this.getDistance(bEndpoints.start, targetEndpoints.start) < 5 || this.getDistance(bEndpoints.start, targetEndpoints.end) < 5 || this.getDistance(bEndpoints.end, targetEndpoints.start) < 5 || this.getDistance(bEndpoints.end, targetEndpoints.end) < 5);
+        // Ortak noktayı bul
+        let sharedPoint: { x: number, y: number } | null = null;
+        if (this.getDistance(bEndpoints.start, targetEndpoints.start) < 5) sharedPoint = targetEndpoints.start;
+        else if (this.getDistance(bEndpoints.start, targetEndpoints.end) < 5) sharedPoint = targetEndpoints.end;
+        else if (this.getDistance(bEndpoints.end, targetEndpoints.start) < 5) sharedPoint = targetEndpoints.start;
+        else if (this.getDistance(bEndpoints.end, targetEndpoints.end) < 5) sharedPoint = targetEndpoints.end;
+
+        if (!sharedPoint) return false;
+
+        // Ortak noktada RAKİP köy/şehir var mı? Varsa yol geçemez!
+        const hasEnemyBuilding = this.room.buildings.some(ob =>
+          (ob.type === BuildingType.SETTLEMENT || ob.type === BuildingType.CITY) &&
+          ob.ownerId !== playerId &&
+          this.getDistance(this.getVertexPixelPos(ob.coord.q, ob.coord.r, ob.coord.vertexIndex!), sharedPoint!) < 5
+        );
+        if (hasEnemyBuilding) return false; // Rakip yapı var, bu bağlantı geçersiz
+
+        return true;
       }
       return false;
     });
@@ -751,8 +768,11 @@ export class RoomManager {
           const amount = b.type === BuildingType.CITY ? 2 : 1;
 
           if (cartelOwner) {
-            // KARTEL AKTİF: Tüm kaynaklar kartel sahibine gider (Altın değil, sadece kaynak!)
-            cartelOwner.resources[res] += amount;
+            // KARTEL AKTİF: Sadece kartel sahibinin kendi binaları üretir
+            if (b.ownerId === cartelOwner.id) {
+              cartelOwner.resources[res] += amount;
+            }
+            // Diğer oyuncuların kaynakları yok olur (hiç dağıtılmaz)
           } else {
             // Normal üretim
             const p = this.room.players.find(player => player.id === b.ownerId);

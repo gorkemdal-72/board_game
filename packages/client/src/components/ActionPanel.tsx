@@ -8,9 +8,10 @@ interface ActionPanelProps {
   isBuilding: 'road' | 'settlement' | 'city' | null; // GÜNCELLENDİ
   onCancelBuild: () => void;
   onBuyCard: () => void; // EKLENDİ
+  devCardDeckCount?: number; // Destede kalan kart sayısı
 }
 
-export function ActionPanelContent({ onBuildRoad, onBuildSettlement, onBuildCity, onEndTurn, isBuilding, onCancelBuild, onBuyCard }: ActionPanelProps) {
+export function ActionPanelContent({ onBuildRoad, onBuildSettlement, onBuildCity, onEndTurn, isBuilding, onCancelBuild, onBuyCard, devCardDeckCount }: ActionPanelProps) {
   return (
     <>
       {isBuilding ? (
@@ -54,11 +55,17 @@ export function ActionPanelContent({ onBuildRoad, onBuildSettlement, onBuildCity
             {/* KART ALMA BUTONU */}
             <button
               onClick={onBuyCard}
-              className="bg-purple-700 hover:bg-purple-600 text-white p-4 rounded-xl shadow-lg flex flex-col items-center gap-1 border border-slate-600 transition-all hover:scale-105"
-              title="Gelişim Kartı Satın Al: 1 Elmas + 1 Tekstil + 1 Gıda. Kartlar sıradaki turda kullanılabilir."
+              className={`${devCardDeckCount === 0 ? 'bg-gray-600 opacity-50 cursor-not-allowed' : 'bg-purple-700 hover:bg-purple-600'} text-white p-4 rounded-xl shadow-lg flex flex-col items-center gap-1 border border-slate-600 transition-all hover:scale-105`}
+              title={`Gelişim Kartı Satın Al: 1 Elmas + 1 Tekstil + 1 Gıda. Destede ${devCardDeckCount ?? '?'} kart kaldı.`}
+              disabled={devCardDeckCount === 0}
             >
               <span className="text-2xl">🃏</span>
               <span className="text-[10px] font-bold">KART (1💎 1🐑 1🌾)</span>
+              {devCardDeckCount !== undefined && (
+                <span className={`text-[9px] font-bold ${devCardDeckCount <= 5 ? 'text-red-300' : 'text-yellow-300'}`}>
+                  Deste: {devCardDeckCount}/30
+                </span>
+              )}
             </button>
           </div>
 

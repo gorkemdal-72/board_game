@@ -418,9 +418,9 @@ function App() {
         )}
       </header>
 
-      <main className="flex-1 relative flex items-center justify-center bg-slate-900 overflow-hidden">
+      <main className={`flex-1 relative flex items-center justify-center bg-slate-900 ${isInGame ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {!isInGame && (
-          <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center gap-4">
+          <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center gap-4 py-4 md:py-0">
             {/* Profil Paneli */}
             <div className="w-full flex justify-end">
               <button
@@ -630,6 +630,7 @@ function App() {
                 onEndTurn={handleEndTurn}
                 isBuilding={turnSubPhase === 'road' || turnSubPhase === 'settlement' || turnSubPhase === 'city' ? turnSubPhase : null}
                 onCancelBuild={cancelBuild}
+                devCardDeckCount={devCardDeckCount}
               />
             )}
 
@@ -682,6 +683,7 @@ function App() {
                 onEndTurn={handleEndTurn}
                 isBuilding={turnSubPhase === 'road' || turnSubPhase === 'settlement' || turnSubPhase === 'city' ? turnSubPhase : null}
                 onCancelBuild={cancelBuild}
+                devCardDeckCount={devCardDeckCount}
               />
             )}
 
