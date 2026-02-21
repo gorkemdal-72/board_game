@@ -329,7 +329,7 @@ function App() {
       <header className="h-14 bg-slate-800/95 border-b border-slate-600 flex items-center px-4 z-20 shrink-0 gap-3">
         {/* SOL: Logo + Durum */}
         <div className="flex items-center gap-2 shrink-0">
-          <h1 className="text-xl font-bold text-cyan-400 tracking-wider">CUMOR</h1>
+          <h1 className="text-xs md:text-xl font-bold text-cyan-400 tracking-wider">CUMOR</h1>
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
           {isInGame && (
             <>
@@ -346,7 +346,7 @@ function App() {
 
         {/* ORTA: Oyuncu Skor Tablosu */}
         {isInGame && (
-          <div className="flex-1 flex items-center justify-center gap-1.5 overflow-x-auto">
+          <div className="flex-1 flex items-center justify-center gap-1 md:gap-1.5 overflow-x-auto min-w-0">
             {players.map(p => {
               const isActive = activePlayerId === p.id;
               const isMe = p.id === myId;
@@ -354,7 +354,7 @@ function App() {
               const hasLargestArmy = largestArmyPlayerId === p.id;
               return (
                 <div key={p.id}
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${isActive
+                  className={`flex items-center gap-0.5 md:gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded text-[10px] md:text-xs transition-all shrink-0 ${isActive
                     ? 'bg-yellow-500/20 border border-yellow-400 text-white shadow-[0_0_8px_rgba(234,179,8,0.3)]'
                     : 'bg-slate-700/40 border border-slate-600/50 text-gray-400'
                     } ${isMe ? 'ring-1 ring-cyan-500/50' : ''}`}
@@ -383,7 +383,7 @@ function App() {
 
         {/* SAĞ: Sıradaki + Admin */}
         {isInGame && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden md:flex items-center gap-2 shrink-0">
             <div className="flex items-center gap-1.5 bg-slate-700/50 px-2 py-1 rounded text-xs border border-slate-600">
               <span className="text-gray-500">Sıra:</span>
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: activePlayer?.color || 'gray' }} />
@@ -449,7 +449,7 @@ function App() {
         {isInGame && (
           <>
             {/* BOARD - EN ALT KATMAN */}
-            <div className="absolute inset-0 z-0 flex items-center justify-center">
+            <div className="absolute inset-0 z-0 flex items-center justify-center pb-44 md:pb-20">
               <HexBoard
                 tiles={tiles}
                 buildings={buildings}
@@ -648,7 +648,7 @@ function App() {
                 buildings={buildings}
                 tiles={tiles}
                 onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
-                canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 15}
+                canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 33}
                 isMyTurn={isMyTurn}
               />
             )}
@@ -701,7 +701,7 @@ function App() {
                 buildings={buildings}
                 tiles={tiles}
                 onBuyVictoryPoint={() => socket.emit('buy_victory_point')}
-                canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 15}
+                canBuyVP={(players.find(p => p.id === myId)?.resources?.[ResourceType.GOLD] || 0) >= 33}
                 isMyTurn={isMyTurn}
                 onClose={() => setActiveMobilePanel('none')}
               />

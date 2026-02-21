@@ -76,6 +76,7 @@ export class RoomManager {
   public password?: string;
   public name: string;
   private devCardDeck: DevCardType[] = []; // Deste
+  private hasRolled: boolean = false; // Zar atıldı mı?
 
   constructor(id: string, name: string, password?: string) {
     this.name = name;
@@ -105,17 +106,28 @@ export class RoomManager {
   }
 
   // DESTE OLUŞTURMA: Tüm gelişim kartlarını desteye ekler ve karıştırır
-  private initializeDeck() {
-    const cards: DevCardType[] = [
-      ...Array(14).fill(DevCardType.MERCENARY),  // 14x Paralı Asker (en yaygın)
+  // large=true: 5 kişilik oyun için 1.5x deste (45 kart)
+  private initializeDeck(large: boolean = false) {
+    const cards: DevCardType[] = large ? [
+      // 5 KİŞİLİK BÜYÜK DESTE (45 kart)
+      ...Array(21).fill(DevCardType.MERCENARY),    // 21x Paralı Asker
+      ...Array(7).fill(DevCardType.VICTORY_POINT),  // 7x Zafer Puanı
+      ...Array(3).fill(DevCardType.SABOTAGE),       // 3x Sabotaj
+      ...Array(3).fill(DevCardType.CARTEL),          // 3x Kartel
+      ...Array(3).fill(DevCardType.INSURANCE),       // 3x Yol Sigortası
+      ...Array(3).fill(DevCardType.ENGINEER),        // 3x Mühendis
+      ...Array(3).fill(DevCardType.TRADER),          // 3x Tüccar
+      ...Array(2).fill(DevCardType.MERCATOR)         // 2x Mercator
+    ] : [
+      // STANDART DESTE (30 kart)
+      ...Array(14).fill(DevCardType.MERCENARY),    // 14x Paralı Asker
       ...Array(5).fill(DevCardType.VICTORY_POINT), // 5x Zafer Puanı
-      ...Array(2).fill(DevCardType.SABOTAGE),    // 2x Sabotaj
-      ...Array(2).fill(DevCardType.CARTEL),       // 2x Kartel
-      ...Array(2).fill(DevCardType.INSURANCE),    // 2x Yol Sigortası
-      // YENİ KARTLAR:
-      ...Array(2).fill(DevCardType.ENGINEER),     // 2x Mühendis (ücretsiz 2 yol)
-      ...Array(2).fill(DevCardType.TRADER),       // 2x Tüccar (bankadan 3 kaynak)
-      ...Array(1).fill(DevCardType.MERCATOR)      // 1x Mercator (çok güçlü, sadece 1 adet)
+      ...Array(2).fill(DevCardType.SABOTAGE),      // 2x Sabotaj
+      ...Array(2).fill(DevCardType.CARTEL),         // 2x Kartel
+      ...Array(2).fill(DevCardType.INSURANCE),      // 2x Yol Sigortası
+      ...Array(2).fill(DevCardType.ENGINEER),       // 2x Mühendis
+      ...Array(2).fill(DevCardType.TRADER),          // 2x Tüccar
+      ...Array(1).fill(DevCardType.MERCATOR)         // 1x Mercator
     ];
     this.devCardDeck = shuffle(cards);
   }
@@ -221,21 +233,32 @@ export class RoomManager {
   }
 
   // --- TİCARET SİSTEMİ ---
-  // İHRACAT: Kaynağı satarak Altın kazanma (SIRA KONTROLÜ EKLENDİ)
+  // Kaynak Satış Fiyatları (Tier bazlı): 1 kaynak sat → X altın kazan
+  private static SELL_PRICES: Record<string, number> = {
+    [ResourceType.FOOD]: 1,      // Tier 1: Temel kaynaklar
+    [ResourceType.LUMBER]: 1,    // Tier 1
+    [ResourceType.CONCRETE]: 2,  // Tier 2: Orta kaynaklar
+    [ResourceType.TEXTILE]: 2,   // Tier 2
+    [ResourceType.DIAMOND]: 3    // Tier 3: Nadir kaynak
+  };
+
+  // İHRACAT: 1 kaynak sat → tier fiyatı kadar altın kazan
   tradeWithBank(playerId: string, sellResource: ResourceType) {
-    // Sıra kontrolü: Sadece sırası gelen oyuncu ihracat yapabilir
     if (this.room.activePlayerId !== playerId) throw new Error("Sıra sende değil! İhracat yapmak için sıranı bekle.");
+    if (!this.hasRolled) throw new Error("Önce zar atmalısın!");
     const player = this.room.players.find(p => p.id === playerId);
     if (!player) throw new Error("Oyuncu yok");
-    const rates: Record<string, number> = { [ResourceType.FOOD]: 3, [ResourceType.LUMBER]: 3, [ResourceType.CONCRETE]: 2, [ResourceType.TEXTILE]: 2, [ResourceType.DIAMOND]: 1 };
-    const required = rates[sellResource];
-    if (!required || player.resources[sellResource] < required) throw new Error("Yetersiz Kaynak!");
-    player.resources[sellResource] -= required;
-    player.resources[ResourceType.GOLD] += 1;
+    if (player.resources[sellResource] < 1) throw new Error("Yetersiz Kaynak!");
+    const goldGain = RoomManager.SELL_PRICES[sellResource] || 1;
+    player.resources[sellResource] -= 1;
+    player.resources[ResourceType.GOLD] += goldGain;
   }
 
+  // KARABORSA: Formül = SatışFiyatı × 2 + KonumVergisi
+  // Konum Vergisi: Şehir=+0, Köy=+1, Yol=+2, Yok=+3
   buyFromBlackMarket(playerId: string, resource: ResourceType) {
     if (this.room.activePlayerId !== playerId) throw new Error("Sıra sende değil!");
+    if (!this.hasRolled) throw new Error("Önce zar atmalısın!");
     if (this.room.turnSubPhase !== 'waiting') {
       throw new Error("Şu an ticaret yapamazsın.");
     }
@@ -243,31 +266,30 @@ export class RoomManager {
     const player = this.room.players.find(p => p.id === playerId);
     if (!player) throw new Error("Oyuncu bulunamadı.");
 
-    // Karaborsa fiyatını belirle - KONUM BAZLI (Hex Geometri)
-    const myBuildings = this.room.buildings.filter(b => b.ownerId === playerId);
-    let rate = 5;
+    // Kaynak taban fiyatı (satış × 2)
+    const baseSellPrice = RoomManager.SELL_PRICES[resource] || 1;
+    const baseRate = baseSellPrice * 2;
 
-    // 1. Hedef kaynağı üreten arazileri bul
+    // Konum vergisini belirle
+    const myBuildings = this.room.buildings.filter(b => b.ownerId === playerId);
+    let locationTax = 3; // Varsayılan: Hiçbir şey yok (+3)
+
+    // Hedef kaynağı üreten arazileri bul
     const targetTiles = this.room.tiles.filter(t => this.getTerrainResource(t.terrain) === resource);
 
-    // 2. Her bir hedef arazi için kontrol et
     for (const tile of targetTiles) {
       const { x, y } = hexToPixel(tile.coord.q, tile.coord.r, HEX_SIZE);
       const tileCorners = getHexCorners(x, y, HEX_SIZE);
 
-      // Bu arazi üzerinde oyuncunun YAPISI var mı? (Sadece Köy/Şehir)
       const myStructures = myBuildings.filter(b => b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY);
       for (const building of myStructures) {
-        // GÜVENLİK: vertexIndex kontrolü
         const vIdx = building.coord.vertexIndex;
         if (vIdx === undefined || vIdx === null || vIdx < 0 || vIdx >= 6) continue;
 
-        // Binanın koordinatını piksele çevir
         const { x: bx, y: by } = hexToPixel(building.coord.q, building.coord.r, HEX_SIZE);
         const buildingCorners = getHexCorners(bx, by, HEX_SIZE);
         const buildingPos = buildingCorners[vIdx];
 
-        // Bina, arazinin köşelerinden birine yakın mı?
         const isOnTile = tileCorners.some(corner => {
           const dx = corner.x - buildingPos.x;
           const dy = corner.y - buildingPos.y;
@@ -275,16 +297,18 @@ export class RoomManager {
         });
 
         if (isOnTile) {
-          if (building.type === BuildingType.CITY) rate = Math.min(rate, 2);
-          else if (building.type === BuildingType.SETTLEMENT) rate = Math.min(rate, 3);
+          if (building.type === BuildingType.CITY) locationTax = Math.min(locationTax, 0);       // Şehir: +0
+          else if (building.type === BuildingType.SETTLEMENT) locationTax = Math.min(locationTax, 1); // Köy: +1
         }
       }
     }
 
-    // Eğer binası yoksa (rate hala 5), ama oyuncunun genel olarak yolu varsa 4.
-    if (rate === 5 && myBuildings.some(b => b.type === BuildingType.ROAD)) {
-      rate = 4;
+    // Yol varsa vergi +2 (bina yoksa)
+    if (locationTax === 3 && myBuildings.some(b => b.type === BuildingType.ROAD)) {
+      locationTax = 2;
     }
+
+    const rate = baseRate + locationTax;
 
     if ((player.resources[ResourceType.GOLD] || 0) < rate) {
       throw new Error(`Yeterli altın yok! (${rate} Altın gerekli)`);
@@ -296,7 +320,7 @@ export class RoomManager {
     return `Karaborsadan ${rate} altına 1 ${resource} alındı.`;
   }
 
-  // 15 Kuralı: 15 Altın = 1 VP
+  // 33 Kuralı: 33 Altın = 1 VP (Maks 2 kez)
   buyVictoryPoint(playerId: string) {
     if (this.room.activePlayerId !== playerId) throw new Error("Sıra sende değil!");
 
@@ -308,15 +332,22 @@ export class RoomManager {
     const player = this.room.players.find(p => p.id === playerId);
     if (!player) throw new Error("Oyuncu bulunamadı.");
 
-    if ((player.resources[ResourceType.GOLD] || 0) < 15) {
-      throw new Error("Yeterli altın yok! (15 Altın gerekli)");
+    // LIMIT: Maksimum 2 VP satın alınabilir
+    const purchased = (player as any).purchasedVPs || 0;
+    if (purchased >= 2) {
+      throw new Error("Maksimum VP satın alma limitine ulaştın! (2/2)");
+    }
+
+    if ((player.resources[ResourceType.GOLD] || 0) < 33) {
+      throw new Error("Yeterli altın yok! (33 Altın gerekli)");
     }
 
     // İşlem
-    player.resources[ResourceType.GOLD] -= 15;
+    player.resources[ResourceType.GOLD] -= 33;
     player.victoryPoints += 1;
+    (player as any).purchasedVPs = purchased + 1;
 
-    return `${player.name}, 15 Altın ödeyerek 1 Zafer Puanı satın aldı! 🏆`;
+    return `${player.name}, 33 Altın ödeyerek 1 Zafer Puanı satın aldı! (${purchased + 1}/2) 🏆`;
   }
 
   // KART SATIN ALMA [cite: 71]
@@ -742,10 +773,11 @@ export class RoomManager {
     const total = d1 + d2;
 
     if (total === 7) {
-      this.handleDiceSeven(); // Hırsız tetiklenir
+      this.handleDiceSeven();
     } else {
       this.distributeResources(total);
     }
+    this.hasRolled = true;
     return { die1: d1, die2: d2, total };
   }
 
@@ -806,8 +838,8 @@ export class RoomManager {
             if (!hasBuilding) {
               const p = this.room.players.find(player => player.id === ownerId);
               if (p) {
-                // TİCARET ROTASI BONUSU: 2+ yol varsa 2 Altın, yoksa 1 Altın
-                const goldAmount = roadCount >= 2 ? 2 : 1;
+                // TİCARET ROTASI BONUSU: Yol başına 3 Altın
+                const goldAmount = 3;
                 p.resources[ResourceType.GOLD] += goldAmount;
               }
             }
@@ -935,6 +967,7 @@ export class RoomManager {
 
     this.room.activePlayerId = nextPlayerId;
     this.room.turnSubPhase = 'waiting';
+    this.hasRolled = false; // Yeni tur için zar atılmadı
 
     // --- KAZANMA KONTROLÜ ---
     this.updateAllVictoryPoints();
@@ -993,8 +1026,8 @@ export class RoomManager {
     const vpCardsNew = (player as any).newDevCards?.[DevCardType.VICTORY_POINT] || 0;
     vp += (vpCardsOld + vpCardsNew);
 
-    // 6. Ekonomik Lider: 15+ Altın = +1 VP
-    if (player.resources[ResourceType.GOLD] >= 15) {
+    // 6. Ekonomik Lider: 33+ Altın = +1 VP
+    if (player.resources[ResourceType.GOLD] >= 33) {
       vp += 1;
     }
 
@@ -1247,9 +1280,10 @@ export class RoomManager {
     if (reqId !== this.room.hostId) throw new Error("Sadece Host!");
     if (this.room.players.length < 3 || this.room.players.length > 5) throw new Error("Oyunu başlatmak için 3-5 kişi gerekli!");
 
-    // 5 KİŞİ: Büyük harita oluştur (radius=3, 37 arazi)
+    // 5 KİŞİ: Büyük harita + Büyük deste oluştur
     if (this.room.players.length === 5) {
-      this.room.tiles = generateMap(3); // Büyük harita
+      this.room.tiles = generateMap(3); // Büyük harita (radius=3, 37 arazi)
+      this.initializeDeck(true);        // Büyük deste (45 kart)
     }
 
     // Manuel Zar Aşamasına Geç
@@ -1308,7 +1342,7 @@ export class RoomManager {
         this.room.players = newOrder;
 
         // Setup Phase Başlat
-        this.room.players.forEach(p => p.resources[ResourceType.GOLD] = 3);
+        this.room.players.forEach(p => p.resources[ResourceType.GOLD] = 7);
         this.room.status = GameStatus.SETUP_ROUND_1;
         this.room.activePlayerId = this.room.players[0].id;
         this.room.turnSubPhase = 'settlement';

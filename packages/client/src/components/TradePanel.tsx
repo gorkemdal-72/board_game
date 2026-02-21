@@ -12,13 +12,23 @@ const RESOURCE_NAMES: Record<ResourceType, string> = {
   [ResourceType.GOLD]: 'ALTIN'
 };
 
-// İhracat (Satış) Fiyatları
-const SELL_RATES: Record<string, number> = {
-  [ResourceType.FOOD]: 3,
-  [ResourceType.LUMBER]: 3,
-  [ResourceType.CONCRETE]: 2,
-  [ResourceType.TEXTILE]: 2,
-  [ResourceType.DIAMOND]: 1
+// ResourcePanel ile aynı ikonlar
+const RESOURCE_ICONS: Record<ResourceType, string> = {
+  [ResourceType.LUMBER]: '🌲',
+  [ResourceType.CONCRETE]: '🧱',
+  [ResourceType.TEXTILE]: '🧵',
+  [ResourceType.FOOD]: '🌾',
+  [ResourceType.DIAMOND]: '💎',
+  [ResourceType.GOLD]: '💰'
+};
+
+// İhracat (Satış) Fiyatları: 1 kaynak sat → X altın kazan
+const SELL_PRICES: Record<string, number> = {
+  [ResourceType.FOOD]: 1,      // Tier 1: Temel
+  [ResourceType.LUMBER]: 1,    // Tier 1
+  [ResourceType.CONCRETE]: 2,  // Tier 2: Orta
+  [ResourceType.TEXTILE]: 2,   // Tier 2
+  [ResourceType.DIAMOND]: 3    // Tier 3: Nadir
 };
 
 interface TradePanelProps {
@@ -49,40 +59,32 @@ const TERRAIN_RESOURCE_MAP: Partial<Record<string, ResourceType>> = {
 };
 
 // Konum Bazlı Karaborsa Oranı Hesaplama
+// Formül: SatışFiyatı × 2 + KonumVergisi (Şehir=+0, Köy=+1, Yol=+2, Yok=+3)
 function getBlackMarketRate(myId: string, buildings: Building[], tiles: Tile[], targetResource: ResourceType): number {
-  // GÜVENLİK: Null/undefined kontrolü
-  if (!tiles || !buildings || tiles.length === 0) return 5;
+  const baseSellPrice = SELL_PRICES[targetResource] || 1;
+  const baseRate = baseSellPrice * 2;
 
-  let bestRate = 5; // Varsayılan (Hiçbir şey yoksa)
-  const HEX_SIZE = 50; // App.tsx ile aynı olmalı
+  if (!tiles || !buildings || tiles.length === 0) return baseRate + 3;
 
-  // 1. Hedef kaynağı üreten arazileri bul
+  const HEX_SIZE = 50;
+  let locationTax = 3; // Varsayılan: Hiçbir şey yok (+3)
+
   const targetTiles = tiles.filter(t => TERRAIN_RESOURCE_MAP[t.terrain] === targetResource);
-
-  // 2. Oyuncunun BİNALARINI (Köy/Şehir) al - Yolların vertexIndex'i -1 olduğu için geometry hatası veriyor!
   const myBuildings = buildings.filter(b => b.ownerId === myId);
   const myStructures = myBuildings.filter(b => b.type === BuildingType.SETTLEMENT || b.type === BuildingType.CITY);
 
-  // 3. Her bir hedef arazi için kontrol et
   for (const tile of targetTiles) {
     const { x, y } = hexToPixel(tile.coord.q, tile.coord.r, HEX_SIZE);
     const tileCorners = getHexCorners(x, y, HEX_SIZE);
 
-    // Bu arazi üzerinde oyuncunun binası var mı?
     for (const building of myStructures) {
-      // Binanın koordinatını piksele çevir
       const { x: bx, y: by } = hexToPixel(building.coord.q, building.coord.r, HEX_SIZE);
       const buildingCorners = getHexCorners(bx, by, HEX_SIZE);
-
-      // GÜVENLİK KONTROLÜ: vertexIndex geçerli mi?
       const vIndex = building.coord.vertexIndex ?? 0;
       if (vIndex < 0 || vIndex >= 6) continue;
-
       const buildingPos = buildingCorners[vIndex];
       if (!buildingPos) continue;
 
-      // Bina, arazinin köşelerinden birine yakın mı?
-      // (Mesafe kontrolü)
       const isOnTile = tileCorners.some(corner => {
         const dx = corner.x - buildingPos.x;
         const dy = corner.y - buildingPos.y;
@@ -90,23 +92,18 @@ function getBlackMarketRate(myId: string, buildings: Building[], tiles: Tile[], 
       });
 
       if (isOnTile) {
-        if (building.type === BuildingType.CITY) bestRate = Math.min(bestRate, 2);
-        else if (building.type === BuildingType.SETTLEMENT) bestRate = Math.min(bestRate, 3);
-        // Yol kontrolü çok daha zor (kenar kontrolü), şimdilik sadece binalar
+        if (building.type === BuildingType.CITY) locationTax = Math.min(locationTax, 0);       // Şehir: +0
+        else if (building.type === BuildingType.SETTLEMENT) locationTax = Math.min(locationTax, 1); // Köy: +1
       }
     }
   }
 
-  // Eğer binası yoksa ama o kaynağı üreten bir yere yolu varsa 4, yoksa 5.
-  // Yol kontrolü zor olduğu için: Eğer bina yoksa (bestRate hala 5 ise),
-  // ve oyuncunun genel olarak yolu varsa 4 yap (Basitleştirme).
-  // Veya kullanıcının isteğine göre "Orda yolum varsa 4" diyor.
-  // Şimdilik bina yoksa 4 varsayalım (Global yol kuralı gibi).
-  if (bestRate === 5 && myBuildings.some(b => b.type === BuildingType.ROAD)) {
-    bestRate = 4;
+  // Yol varsa vergi +2 (bina yoksa)
+  if (locationTax === 3 && myBuildings.some(b => b.type === BuildingType.ROAD)) {
+    locationTax = 2;
   }
 
-  return bestRate;
+  return baseRate + locationTax;
 }
 
 export function TradePanelContent(props: TradePanelProps) {
@@ -146,7 +143,7 @@ export function TradePanelContent(props: TradePanelProps) {
           <div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-green-400 font-bold">İHRACAT (SAT)</span>
-              <span className="text-[10px] text-gray-500">Kaynak → 1 💰</span>
+              <span className="text-[10px] text-gray-500">1 Kaynak → X 💰</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {resources.map(res => (
@@ -155,13 +152,13 @@ export function TradePanelContent(props: TradePanelProps) {
                   onClick={() => props.onBankSell(res)}
                   disabled={!props.isMyTurn} // Sıra kontrolü
                   className={`bg-slate-800 hover:bg-green-900/50 p-2 rounded border border-slate-700 text-xs text-gray-300 flex flex-col items-center gap-1 transition-all ${!props.isMyTurn ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  title={!props.isMyTurn ? 'Sıra sende değil!' : `${SELL_RATES[res]} ${RESOURCE_NAMES[res]} satıp 1 Altın kazan`}
+                  title={!props.isMyTurn ? 'Sıra sende değil!' : `1 ${RESOURCE_NAMES[res]} satıp ${SELL_PRICES[res]} Altın kazan`}
                 >
                   <span className="font-bold text-white">{RESOURCE_NAMES[res]}</span>
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                    <span>{SELL_RATES[res]} {res === ResourceType.FOOD || res === ResourceType.LUMBER ? '📦' : '💎'}</span>
+                    <span>1 {RESOURCE_ICONS[res]}</span>
                     <span>→</span>
-                    <span className="text-yellow-400">1 💰</span>
+                    <span className="text-yellow-400">{SELL_PRICES[res]} 💰</span>
                   </div>
                 </button>
               ))}
@@ -189,14 +186,14 @@ export function TradePanelContent(props: TradePanelProps) {
                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
                       <span className="text-yellow-400">{rate} 💰</span>
                       <span>→</span>
-                      <span>1 📦</span>
+                      <span>1 {RESOURCE_ICONS[res]}</span>
                     </div>
                   </button>
                 );
               })}
             </div>
             <div className="text-[9px] text-gray-500 text-center mt-2 italic border-t border-slate-700 pt-1">
-              Oranlar: 🏰Şehir=2, 🏠Köy=3, 🛤️Yol=4, ❌Yok=5
+              Formül: Satış×2 + Vergi (🏰+0, 🏠+1, 🛤️+2, ❌+3)
             </div>
           </div>
 
@@ -204,11 +201,11 @@ export function TradePanelContent(props: TradePanelProps) {
           <div className="border-t border-slate-700 mt-4 pt-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-yellow-400 font-bold">ZAFER PUANI 🏆</span>
-              <span className="text-[10px] text-gray-500">15 Altın = 1 VP</span>
+              <span className="text-[10px] text-gray-500">33 Altın = 1 VP</span>
             </div>
             <button onClick={() => props.onBuyVictoryPoint?.()} disabled={!props.canBuyVP} className={`w-full py-3 rounded-lg font-black shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2 ${props.canBuyVP ? 'bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 border-2 border-yellow-300' : 'bg-slate-800 text-gray-500 cursor-not-allowed border border-slate-700'}`}>
               <span className="text-xl">🏆</span>
-              <span>PUAN SATIN AL (15 💰)</span>
+              <span>PUAN SATIN AL (33 💰)</span>
             </button>
           </div>
         </div>
