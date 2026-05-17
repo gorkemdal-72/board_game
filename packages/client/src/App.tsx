@@ -16,7 +16,7 @@ let socket: Socket;
 
 // Socket URL
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const socketUrl = isLocal ? 'http://localhost:3001' : 'https://cumorserver-production.up.railway.app';
+const socketUrl = isLocal ? 'http://localhost:3001' : 'https://cumor-game.onrender.com';
 
 function App() {
   const [tiles, setTiles] = useState<Tile[]>([]);

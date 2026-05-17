@@ -857,7 +857,7 @@ export class RoomManager {
       // Örnek: 7 kaynak → 3 atılır, 8 → 4, 9 → 4, 10 → 5 (Altın hariç sayılır)
       const totalResources = Object.entries(p.resources)
         .filter(([key]) => key !== ResourceType.GOLD)
-        .reduce((sum, [_, count]) => sum + count, 0);
+        .reduce((sum, [_, count]) => sum + (count as number), 0);
 
       if (totalResources >= 7) {
         let toDiscard = Math.floor(totalResources / 2);
